@@ -3,10 +3,14 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, X, Send, Menu } from 'lucide-react';
 import AIChatWidget from '../AIChatWidget';
+import useAppStore from '../../store/useStore';
+import { DEFAULT_BRANDING } from '../../lib/brandingUtils';
 
 const PublicLayout = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const location = useLocation();
+    const { branding } = useAppStore();
+    const activeBranding = { ...DEFAULT_BRANDING, ...(branding || {}) };
 
     const navLinks = [
         { path: '/', label: 'Home' },
@@ -21,8 +25,15 @@ const PublicLayout = () => {
                     <div className="flex justify-between items-center h-24">
                         {/* Logo */}
                         <div className="flex-shrink-0 flex items-center gap-3">
-                            <Link to="/" className="text-2xl font-black text-white tracking-tight hover:text-indigo-400 transition-colors">
-                                WhatsApp CRM
+                            <Link to="/" className="flex items-center gap-2.5 text-xl sm:text-2xl font-black text-white tracking-tight hover:text-indigo-400 transition-colors">
+                                {activeBranding.logoDataUrl && (
+                                    <img
+                                        src={activeBranding.logoDataUrl}
+                                        alt={`${activeBranding.appName} logo`}
+                                        className="h-8 w-8 rounded-lg object-contain bg-white/5 p-0.5 shrink-0"
+                                    />
+                                )}
+                                <span>{activeBranding.appName || 'WhatsApp CRM'}</span>
                             </Link>
                         </div>
 
@@ -99,8 +110,15 @@ const PublicLayout = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12 border-b border-slate-800/50 pb-12">
                         <div className="col-span-1 md:col-span-2">
-                            <div className="mb-8">
-                                <span className="text-xl font-black text-white tracking-tight">WhatsApp CRM</span>
+                            <div className="mb-8 flex items-center gap-3">
+                                {activeBranding.logoDataUrl && (
+                                    <img
+                                        src={activeBranding.logoDataUrl}
+                                        alt={`${activeBranding.appName} logo`}
+                                        className="h-8 w-8 rounded-lg object-contain bg-white/5 p-0.5 shrink-0"
+                                    />
+                                )}
+                                <span className="text-xl font-black text-white tracking-tight">{activeBranding.appName || 'WhatsApp CRM'}</span>
                             </div>
                             <p className="text-sm font-medium leading-relaxed max-w-sm mb-6 text-slate-400">
                                 Empowering global education through intelligent software. We streamline the admissions process for students and institutions worldwide.

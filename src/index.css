@@ -162,3 +162,19 @@ label {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   @apply bg-gray-300 rounded-full hover:bg-gray-400;
 }
+
+/* Phase 02: Dynamic branding tokens & mobile WebView safe-area utilities */
+:root {
+  --brand-primary: #8B5CF6;
+  --brand-accent: #10B981;
+  --brand-primary-fg: #FFFFFF;
+  --brand-accent-fg: #FFFFFF;
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

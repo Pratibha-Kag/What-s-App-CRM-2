@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import PageLayout from './components/layout/PageLayout'
-import useAppStore from './store/useStore'
+import RoleRouteGuard from './components/auth/RoleRouteGuard'
+import useAppStore, { getRolePath } from './store/useStore'
 import { ToastContainer } from './components/ui/Toast'
 
 // Simple MVP Pages
@@ -35,7 +36,9 @@ import HomePage from './pages/public/HomePage'
 import ContactPage from './pages/public/ContactPage'
 
 function AppRoutes() {
-  const { isAuthenticated } = useAppStore()
+  const { isAuthenticated, role } = useAppStore()
+  const activeRolePath = getRolePath(role || localStorage.getItem('role') || 'SUPER_ADMIN')
+  const hasSession = isAuthenticated && Boolean(localStorage.getItem('user'))
 
   return (
     <>
@@ -47,65 +50,48 @@ function AppRoutes() {
         </Route>
 
         {/* Auth Route */}
-        <Route path="/login" element={
-          isAuthenticated || localStorage.getItem('user') ? (() => {
-            const r = localStorage.getItem('role') || 'SUPER_ADMIN';
-            const roleStr = r.toUpperCase().replace(' ', '_');
-            const roleMap = {
-                'SUPER_ADMIN': 'super-admin',
-                'ADMIN': 'admin',
-                'MANAGER': 'manager',
-                'TEAM_LEADER': 'team-leader',
-                'CUSTOMER_SUPPORT': 'support',
-                'COUNSELOR': 'counselor'
-            };
-            const rolePath = roleMap[roleStr] || 'user';
-            return <Navigate to={`/${rolePath}/dashboard`} replace />;
-          })() : <LoginPage />
-        } />
-
-        {/* Private CRM Routes */}
         <Route
+          path="/login"
           element={
-            isAuthenticated || localStorage.getItem('user') ? (
-              <PageLayout />
+            hasSession ? (
+              <Navigate to={`/${activeRolePath}/dashboard`} replace />
+            ) : (
+              <LoginPage />
+            )
+          }
+        />
+
+        {/* Private CRM Routes (Frontend Demo RBAC Guarded) */}
+        <Route element={<RoleRouteGuard />}>
+          <Route element={<PageLayout />}>
+            <Route path="/:rolePath/dashboard" element={<SimpleDashboard />} />
+            <Route path="/:rolePath/leads" element={<SimpleLeads />} />
+            <Route path="/:rolePath/my-leads" element={<SimpleLeads />} />
+            <Route path="/:rolePath/inbox" element={<SimpleInbox />} />
+            <Route path="/:rolePath/reports" element={<Reports />} />
+            <Route path="/:rolePath/users" element={<Users />} />
+            <Route path="/:rolePath/settings" element={<Settings />} />
+            <Route path="/:rolePath/integrations" element={<Integrations />} />
+            <Route path="/:rolePath/integration" element={<Integrations />} />
+            <Route path="/:rolePath/sales-agent" element={<SalesAgent />} />
+            <Route path="/:rolePath/contacts" element={<Contacts />} />
+            <Route path="/:rolePath/comments" element={<Comments />} />
+            <Route path="/:rolePath/meta-ads" element={<MetaAds />} />
+            <Route path="/:rolePath/notifications" element={<Notifications />} />
+          </Route>
+        </Route>
+
+        {/* Redirect /dashboard to role-based dashboard */}
+        <Route
+          path="/dashboard"
+          element={
+            hasSession ? (
+              <Navigate to={`/${activeRolePath}/dashboard`} replace />
             ) : (
               <Navigate to="/login" replace />
             )
           }
-        >
-          <Route path="/:rolePath/dashboard" element={<SimpleDashboard />} />
-          <Route path="/:rolePath/leads" element={<SimpleLeads />} />
-          <Route path="/:rolePath/my-leads" element={<SimpleLeads />} />
-          <Route path="/:rolePath/inbox" element={<SimpleInbox />} />
-          <Route path="/:rolePath/reports" element={<Reports />} />
-          <Route path="/:rolePath/users" element={<Users />} />
-          <Route path="/:rolePath/settings" element={<Settings />} />
-          <Route path="/:rolePath/integrations" element={<Integrations />} />
-          <Route path="/:rolePath/integration" element={<Integrations />} />
-          <Route path="/:rolePath/sales-agent" element={<SalesAgent />} />
-          <Route path="/:rolePath/contacts" element={<Contacts />} />
-          <Route path="/:rolePath/comments" element={<Comments />} />
-          <Route path="/:rolePath/meta-ads" element={<MetaAds />} />
-        </Route>
-
-        {/* Redirect /dashboard to role-based dashboard */}
-        <Route path="/dashboard" element={
-          isAuthenticated || localStorage.getItem('user') ? (() => {
-            const r = localStorage.getItem('role') || 'SUPER_ADMIN';
-            const roleStr = r.toUpperCase().replace(' ', '_');
-            const roleMap = {
-                'SUPER_ADMIN': 'super-admin',
-                'ADMIN': 'admin',
-                'MANAGER': 'manager',
-                'TEAM_LEADER': 'team-leader',
-                'CUSTOMER_SUPPORT': 'support',
-                'COUNSELOR': 'counselor'
-            };
-            const rolePath = roleMap[roleStr] || 'user';
-            return <Navigate to={`/${rolePath}/dashboard`} replace />;
-          })() : <Navigate to="/login" replace />
-        } />
+        />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
