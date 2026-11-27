@@ -76,13 +76,28 @@ export const calculateUpcomingBirthdayInfo = (dobString, refDate = new Date()) =
     const today = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate());
     const currentYear = today.getFullYear();
 
+    // Leap year baby handling (Feb 29)
+    const isLeapYear = (y) => (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
+    const isLeapBaby = month === 2 && day === 29;
+
+    let targetBdayYear = currentYear;
+    let bdayDay = day;
+    if (isLeapBaby && !isLeapYear(targetBdayYear)) {
+        bdayDay = 28; // In non-leap year, observe on Feb 28
+    }
+
     // Candidate 1: Birthday in current calendar year
-    let nextBday = new Date(currentYear, month - 1, day);
+    let nextBday = new Date(targetBdayYear, month - 1, bdayDay);
 
     // If current year's birthday already passed (strictly before today)
     if (nextBday < today) {
         // Roll over to next calendar year
-        nextBday = new Date(currentYear + 1, month - 1, day);
+        targetBdayYear = currentYear + 1;
+        bdayDay = day;
+        if (isLeapBaby && !isLeapYear(targetBdayYear)) {
+            bdayDay = 28;
+        }
+        nextBday = new Date(targetBdayYear, month - 1, bdayDay);
     }
 
     const diffTime = nextBday.getTime() - today.getTime();

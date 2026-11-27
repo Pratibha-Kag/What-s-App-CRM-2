@@ -4,7 +4,7 @@ import {
     AlertTriangle, Play, Pause, Copy, Trash2, Eye, 
     Sparkles, ChevronLeft, ChevronRight, History, 
     ShieldCheck, Calendar, Sliders, X, Radio, ArrowUpRight,
-    Cake, Flame, CalendarClock
+    Cake, Flame, CalendarClock, DollarSign
 } from 'lucide-react';
 import useWhatsAppAutomationStore from '../../store/useWhatsAppAutomationStore';
 import AutomationRuleBuilderModal from '../../components/whatsapp/automations/AutomationRuleBuilderModal';
@@ -16,6 +16,7 @@ import ExecutionHistoryTable from '../../components/whatsapp/automations/Executi
 import BirthdayAutomationSection from '../../components/whatsapp/automations/BirthdayAutomationSection';
 import FestivalAutomationSection from '../../components/whatsapp/automations/FestivalAutomationSection';
 import AppointmentAutomationSection from '../../components/whatsapp/automations/AppointmentAutomationSection';
+import PaymentAutomationSection from '../../components/whatsapp/automations/PaymentAutomationSection';
 
 const AutomationsPage = () => {
     const {
@@ -244,7 +245,7 @@ const AutomationsPage = () => {
                     <Cake className="w-4 h-4 text-[#EC4899]" />
                     Birthday Automation
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#EC4899]/15 text-[#EC4899] border border-[#EC4899]/30">
-                        Phase 5
+                        Annual
                     </span>
                 </button>
                 <button
@@ -274,7 +275,22 @@ const AutomationsPage = () => {
                     <CalendarClock className="w-4 h-4 text-indigo-400" />
                     Appointment Automation
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
-                        Phase 6
+                        Booking Sync
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('payments')}
+                    className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
+                        activeTab === 'payments'
+                            ? 'border-emerald-400 text-white bg-[#16181D]/40'
+                            : 'border-transparent text-slate-400 hover:text-white'
+                    }`}
+                >
+                    <DollarSign className="w-4 h-4 text-emerald-400" />
+                    Payment Reminders
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        Collections
                     </span>
                 </button>
                 <button
@@ -596,7 +612,12 @@ const AutomationsPage = () => {
                 <AppointmentAutomationSection />
             )}
 
-            {/* TAB 5: EXECUTION HISTORY */}
+            {/* TAB 5: PAYMENT REMINDER AUTOMATION */}
+            {activeTab === 'payments' && (
+                <PaymentAutomationSection />
+            )}
+
+            {/* TAB 6: EXECUTION HISTORY */}
             {activeTab === 'history' && (
                 <ExecutionHistoryTable />
             )}

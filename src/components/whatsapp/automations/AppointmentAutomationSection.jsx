@@ -116,7 +116,7 @@ const AppointmentAutomationSection = () => {
                                     Sync Active
                                 </span>
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#8B5CF6]/15 text-[#8B5CF6] border border-[#8B5CF6]/30">
-                                    Phase 6 Engine
+                                    Auto-Reminders
                                 </span>
                             </div>
                             <p className="text-xs text-slate-400 mt-1 max-w-xl">
