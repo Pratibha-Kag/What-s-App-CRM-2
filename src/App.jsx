@@ -20,6 +20,9 @@ import Contacts from './pages/Contacts'
 import Comments from './pages/Comments'
 import MetaAds from './pages/MetaAds'
 import Notifications from './pages/Notifications'
+import Customers from './pages/Customers'
+import CustomerWallet from './pages/CustomerWallet'
+import SuperAdminBilling from './pages/SuperAdminBilling'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -78,6 +81,9 @@ function AppRoutes() {
             <Route path="/:rolePath/comments" element={<Comments />} />
             <Route path="/:rolePath/meta-ads" element={<MetaAds />} />
             <Route path="/:rolePath/notifications" element={<Notifications />} />
+            <Route path="/:rolePath/customers" element={<Customers />} />
+            <Route path="/:rolePath/wallet" element={<CustomerWallet />} />
+            <Route path="/:rolePath/billing" element={<SuperAdminBilling />} />
           </Route>
         </Route>
 

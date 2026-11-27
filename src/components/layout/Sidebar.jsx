@@ -5,7 +5,7 @@ import { DEFAULT_BRANDING, getContrastTextColor, isValidHexColor } from '../../l
 import {
     LayoutDashboard, MessageSquare, LogOut,
     ChevronLeft, ChevronRight, Link2, Bot,
-    UserSquare, MessageCircle, Megaphone, Settings, X
+    UserSquare, MessageCircle, Megaphone, Settings, X, Building2, Users as UsersIcon, Wallet
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -61,6 +61,30 @@ const Sidebar = () => {
             path: '/meta-ads',
             label: 'Meta Ads',
             icon: Megaphone,
+            roles: ['SUPER_ADMIN', 'ADMIN']
+        },
+        {
+            path: '/customers',
+            label: 'Customers',
+            icon: Building2,
+            roles: ['SUPER_ADMIN']
+        },
+        {
+            path: '/billing',
+            label: 'Wallet & Billing',
+            icon: Wallet,
+            roles: ['SUPER_ADMIN']
+        },
+        {
+            path: '/wallet',
+            label: 'Wallet & Billing',
+            icon: Wallet,
+            roles: ['ADMIN', 'CUSTOMER_ADMIN']
+        },
+        {
+            path: '/users',
+            label: 'Users',
+            icon: UsersIcon,
             roles: ['SUPER_ADMIN', 'ADMIN']
         },
         {
