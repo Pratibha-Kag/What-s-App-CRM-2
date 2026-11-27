@@ -1,13 +1,28 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { 
-    Users, MessageCircle, PhoneCall, Clock, TrendingUp, 
-    ChevronRight, Activity, ArrowUpRight, BarChart3, Bot, Send
+import {
+    Users, MessageCircle, TrendingUp,
+    ChevronRight, Activity
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { mockLeads } from '../mock/mockData';
+import useAppStore, { normalizeRoleKey } from '../store/useStore';
+import SuperAdminDashboard from './SuperAdminDashboard';
+import CustomerAdminDashboard from './CustomerAdminDashboard';
 
 const SimpleDashboard = () => {
+    const { role } = useAppStore();
+    const roleKey = normalizeRoleKey(role);
+
+    if (roleKey === 'SUPER_ADMIN') {
+        return <SuperAdminDashboard />;
+    }
+
+    if (roleKey === 'ADMIN' || roleKey === 'CUSTOMER_ADMIN') {
+        return <CustomerAdminDashboard />;
+    }
+
+    // Preserved dashboard for Manager, Team Leader, Customer Support, and Counselor
     const leads = mockLeads;
     const isLoading = false;
     const totalLeads = leads.length;
@@ -99,7 +114,7 @@ const SimpleDashboard = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Recent Leads Table */}
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
                     className="lg:col-span-2 bg-[#1C1F26] rounded-[20px] border border-[#2D333B] overflow-hidden flex flex-col"
                 >
@@ -155,12 +170,12 @@ const SimpleDashboard = () => {
                 </motion.div>
 
                 {/* System Status */}
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
                     className="bg-[#16181D] rounded-[20px] border border-[#2D333B] p-6 relative overflow-hidden flex flex-col"
                 >
                     <div className="absolute top-0 right-0 p-32 bg-[#25D366] rounded-full blur-[120px] opacity-[0.08] pointer-events-none" />
-                    
+
                     <div className="flex items-center gap-3 mb-6 relative z-10">
                         <div className="h-8 w-8 rounded-lg bg-[#25D366]/10 text-[#25D366] flex items-center justify-center border border-[#25D366]/20">
                             <Activity size={16} />
