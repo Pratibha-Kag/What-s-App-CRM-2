@@ -6,6 +6,12 @@ import {
     mockExternalIntegrationsByCustomer,
     mockExternalSyncLogs,
     mockExternalSyncPreview,
+    mockGoogleBusinessProfiles,
+    mockScraperCategories,
+    mockExtractedBusinessesByCustomer,
+    mockScraperExecutionHistoryByCustomer,
+    mockMetaTechPartnerInitialData,
+    mockLegalCompanyInfo,
     mockLeadAutomationConfig,
     mockLeads,
     mockLeadSources,
@@ -82,6 +88,10 @@ const useAppStore = create((set) => {
     const parsedExtIntegrations = safeParseJson(localStorage.getItem('demo_external_integrations'));
     const parsedExtLogs = safeParseJson(localStorage.getItem('demo_external_sync_logs'));
     const parsedExtPreview = safeParseJson(localStorage.getItem('demo_external_sync_preview'));
+    const parsedGoogleProfiles = safeParseJson(localStorage.getItem('demo_google_business_profiles'));
+    const parsedExtractedBusinesses = safeParseJson(localStorage.getItem('demo_extracted_businesses'));
+    const parsedScraperExecutions = safeParseJson(localStorage.getItem('demo_scraper_executions'));
+    const parsedMetaOnboarding = safeParseJson(localStorage.getItem('demo_meta_tech_partner'));
     const initialCustomers = Array.isArray(parsedCustomers) && parsedCustomers.length > 0
         ? parsedCustomers
         : mockCustomerAccounts;
@@ -112,6 +122,18 @@ const useAppStore = create((set) => {
     const initialExtPreview = parsedExtPreview && typeof parsedExtPreview === 'object'
         ? parsedExtPreview
         : mockExternalSyncPreview;
+    const initialGoogleProfiles = parsedGoogleProfiles && typeof parsedGoogleProfiles === 'object'
+        ? parsedGoogleProfiles
+        : mockGoogleBusinessProfiles;
+    const initialExtractedBusinesses = parsedExtractedBusinesses && typeof parsedExtractedBusinesses === 'object'
+        ? parsedExtractedBusinesses
+        : mockExtractedBusinessesByCustomer;
+    const initialScraperExecutions = parsedScraperExecutions && typeof parsedScraperExecutions === 'object'
+        ? parsedScraperExecutions
+        : mockScraperExecutionHistoryByCustomer;
+    const initialMetaOnboarding = parsedMetaOnboarding && typeof parsedMetaOnboarding === 'object'
+        ? parsedMetaOnboarding
+        : mockMetaTechPartnerInitialData;
     const initialBranding = { ...DEFAULT_BRANDING, ...(parsedBranding || {}) };
     applyBrandingCssVars(initialBranding);
 
@@ -140,6 +162,11 @@ const useAppStore = create((set) => {
         externalIntegrationsByCustomer: initialExtIntegrations,
         externalSyncLogs: initialExtLogs,
         externalSyncPreview: initialExtPreview,
+        googleBusinessProfilesByCustomer: initialGoogleProfiles,
+        extractedBusinessesByCustomer: initialExtractedBusinesses,
+        scraperExecutionHistoryByCustomer: initialScraperExecutions,
+        metaTechPartnerOnboarding: initialMetaOnboarding,
+        legalCompanyInfo: mockLegalCompanyInfo,
         branding: initialBranding,
         country: parsedUser?.country || initialAccount?.country || 'Global',
         statusFilter: 'All Stages',
@@ -1370,6 +1397,444 @@ const useAppStore = create((set) => {
                 };
             });
             return retriedLog;
+        },
+
+        // ====================================================================
+        // PHASE 07 — Google Business & Scraper Actions
+        // ====================================================================
+
+        updateGoogleBusinessProfile: (customerId, updates) => {
+            let updatedProfile = null;
+            set((state) => {
+                const current = state.googleBusinessProfilesByCustomer[customerId] || {
+                    customerId,
+                    customerName: state.customers.find((c) => c.id === customerId)?.companyName || 'Customer',
+                    status: 'disconnected',
+                };
+                updatedProfile = { ...current, ...updates };
+                const nextMap = {
+                    ...state.googleBusinessProfilesByCustomer,
+                    [customerId]: updatedProfile,
+                };
+                localStorage.setItem('demo_google_business_profiles', JSON.stringify(nextMap));
+                return { googleBusinessProfilesByCustomer: nextMap };
+            });
+            return updatedProfile;
+        },
+
+        connectGoogleBusiness: (customerId, profileData = {}) => {
+            let resultProfile = null;
+            set((state) => {
+                const targetCustomer = state.customers.find((c) => c.id === customerId);
+                const current = state.googleBusinessProfilesByCustomer[customerId] || {};
+                const nowStr = new Date().toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                resultProfile = {
+                    customerId,
+                    customerName: targetCustomer?.companyName || current.customerName || 'Customer',
+                    status: 'connected',
+                    accountName: profileData.accountName || current.accountName || `${targetCustomer?.companyName || 'Business'} Official`,
+                    googleEmail: profileData.googleEmail || current.googleEmail || `admin@${String(targetCustomer?.companyName || 'business').toLowerCase().replace(/\s+/g, '')}.com`,
+                    placeId: profileData.placeId || current.placeId || `ChIJ${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+                    locationName: profileData.locationName || current.locationName || `${targetCustomer?.companyName || 'Business'} Location`,
+                    category: profileData.category || current.category || 'Digital Marketing & IT',
+                    address: profileData.address || current.address || 'Tech Park Zone, Commercial Hub, Mumbai, MH 400001',
+                    phone: profileData.phone || current.phone || '+91 98200 12345',
+                    website: profileData.website || current.website || 'https://example.com',
+                    rating: profileData.rating || current.rating || 4.8,
+                    reviewCount: profileData.reviewCount || current.reviewCount || 120,
+                    isVerified: true,
+                    lastSync: nowStr,
+                };
+                const nextMap = {
+                    ...state.googleBusinessProfilesByCustomer,
+                    [customerId]: resultProfile,
+                };
+                localStorage.setItem('demo_google_business_profiles', JSON.stringify(nextMap));
+                return { googleBusinessProfilesByCustomer: nextMap };
+            });
+            return resultProfile;
+        },
+
+        disconnectGoogleBusiness: (customerId) => {
+            let disconnectedProfile = null;
+            set((state) => {
+                const current = state.googleBusinessProfilesByCustomer[customerId];
+                if (!current) return {};
+                disconnectedProfile = {
+                    ...current,
+                    status: 'disconnected',
+                    isVerified: false,
+                };
+                const nextMap = {
+                    ...state.googleBusinessProfilesByCustomer,
+                    [customerId]: disconnectedProfile,
+                };
+                localStorage.setItem('demo_google_business_profiles', JSON.stringify(nextMap));
+                return { googleBusinessProfilesByCustomer: nextMap };
+            });
+            return disconnectedProfile;
+        },
+
+        testGoogleBusinessConnection: (customerId, simulateFail = false) => {
+            if (simulateFail) {
+                return {
+                    success: false,
+                    message: 'Simulated connection failure: Google Business API token expired or unauthorized.',
+                };
+            }
+            return {
+                success: true,
+                message: 'Google Business connection verified: OAuth tokens active, Place API responsive (200 OK).',
+            };
+        },
+
+        addScraperExecution: (customerId, executionRecord) => {
+            let newLog = null;
+            set((state) => {
+                const currentList = state.scraperExecutionHistoryByCustomer[customerId] || [];
+                const nextId = `RUN-${1000 + currentList.length + 1}`;
+                newLog = {
+                    id: executionRecord.id || nextId,
+                    keyword: executionRecord.keyword || 'General Business',
+                    category: executionRecord.category || 'All Categories',
+                    location: executionRecord.location || 'Global',
+                    status: executionRecord.status || 'Completed',
+                    totalFound: Number(executionRecord.totalFound) || 0,
+                    successful: Number(executionRecord.successful) || 0,
+                    failed: Number(executionRecord.failed) || 0,
+                    startedAt: executionRecord.startedAt || new Date().toLocaleString(),
+                    duration: executionRecord.duration || '15s',
+                };
+                const nextHistory = [newLog, ...currentList];
+                const nextMap = {
+                    ...state.scraperExecutionHistoryByCustomer,
+                    [customerId]: nextHistory,
+                };
+                localStorage.setItem('demo_scraper_executions', JSON.stringify(nextMap));
+                return { scraperExecutionHistoryByCustomer: nextMap };
+            });
+            return newLog;
+        },
+
+        addExtractedBusinesses: (customerId, newBusinesses) => {
+            set((state) => {
+                const currentList = state.extractedBusinessesByCustomer[customerId] || [];
+                const formatted = (Array.isArray(newBusinesses) ? newBusinesses : [newBusinesses]).map((item, idx) => ({
+                    ...item,
+                    id: item.id || `gmb-${Date.now()}-${idx}`,
+                    status: item.status || 'Extracted',
+                    source: item.source || 'Google Business Scraper',
+                    extractedAt: item.extractedAt || new Date().toLocaleString(),
+                }));
+                const nextList = [...formatted, ...currentList];
+                const nextMap = {
+                    ...state.extractedBusinessesByCustomer,
+                    [customerId]: nextList,
+                };
+                localStorage.setItem('demo_extracted_businesses', JSON.stringify(nextMap));
+                return { extractedBusinessesByCustomer: nextMap };
+            });
+        },
+
+        deleteExtractedBusiness: (customerId, businessId) => {
+            set((state) => {
+                const currentList = state.extractedBusinessesByCustomer[customerId] || [];
+                const nextList = currentList.filter((b) => b.id !== businessId);
+                const nextMap = {
+                    ...state.extractedBusinessesByCustomer,
+                    [customerId]: nextList,
+                };
+                localStorage.setItem('demo_extracted_businesses', JSON.stringify(nextMap));
+                return { extractedBusinessesByCustomer: nextMap };
+            });
+        },
+
+        updateExtractedBusinessStatus: (customerId, businessIds, status = 'Imported') => {
+            const idSet = new Set(Array.isArray(businessIds) ? businessIds : [businessIds]);
+            set((state) => {
+                const currentList = state.extractedBusinessesByCustomer[customerId] || [];
+                const nextList = currentList.map((item) =>
+                    idSet.has(item.id) ? { ...item, status } : item
+                );
+                const nextMap = {
+                    ...state.extractedBusinessesByCustomer,
+                    [customerId]: nextList,
+                };
+                localStorage.setItem('demo_extracted_businesses', JSON.stringify(nextMap));
+                return { extractedBusinessesByCustomer: nextMap };
+            });
+        },
+
+        // ====================================================================
+        // PHASE 08 — Meta Tech Partner Onboarding Actions
+        // ====================================================================
+
+        updateMetaBusinessInfo: (updates) => {
+            set((state) => {
+                const nextObj = {
+                    ...state.metaTechPartnerOnboarding,
+                    businessInfo: {
+                        ...state.metaTechPartnerOnboarding.businessInfo,
+                        ...updates,
+                    },
+                };
+                localStorage.setItem('demo_meta_tech_partner', JSON.stringify(nextObj));
+                return { metaTechPartnerOnboarding: nextObj };
+            });
+        },
+
+        updateMetaVerificationChecklist: (checklistId, status) => {
+            set((state) => {
+                const current = state.metaTechPartnerOnboarding;
+                const nextChecklist = current.verificationChecklist.map((item) =>
+                    item.id === checklistId ? { ...item, status } : item
+                );
+                const nextObj = {
+                    ...current,
+                    verificationChecklist: nextChecklist,
+                };
+                localStorage.setItem('demo_meta_tech_partner', JSON.stringify(nextObj));
+                return { metaTechPartnerOnboarding: nextObj };
+            });
+        },
+
+        uploadMetaDocument: (docData) => {
+            set((state) => {
+                const current = state.metaTechPartnerOnboarding;
+                const existingIndex = current.documents.findIndex((d) => d.id === docData.id || d.title === docData.title);
+                let nextDocs;
+                const timestampStr = new Date().toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                const newDocItem = {
+                    id: docData.id || `doc-${Date.now()}`,
+                    title: docData.title || 'Supporting Verification Document',
+                    filename: docData.filename || 'uploaded_document.pdf',
+                    size: docData.size || '1.2 MB',
+                    mimeType: docData.mimeType || 'application/pdf',
+                    status: docData.status || 'Verified',
+                    uploadedAt: timestampStr,
+                    hash: `sha256-${Math.random().toString(36).substring(2, 18)}`,
+                };
+                if (existingIndex >= 0) {
+                    nextDocs = [...current.documents];
+                    nextDocs[existingIndex] = newDocItem;
+                } else {
+                    nextDocs = [...current.documents, newDocItem];
+                }
+                const nextActivity = [
+                    {
+                        id: `act-${Date.now()}`,
+                        action: 'Document Uploaded',
+                        details: `Uploaded ${newDocItem.title} (${newDocItem.filename}).`,
+                        timestamp: timestampStr,
+                        performedBy: 'Super Admin',
+                    },
+                    ...current.activityHistory,
+                ];
+                const nextObj = {
+                    ...current,
+                    documents: nextDocs,
+                    activityHistory: nextActivity,
+                };
+                localStorage.setItem('demo_meta_tech_partner', JSON.stringify(nextObj));
+                return { metaTechPartnerOnboarding: nextObj };
+            });
+        },
+
+        deleteMetaDocument: (docId) => {
+            set((state) => {
+                const current = state.metaTechPartnerOnboarding;
+                const nextDocs = current.documents.filter((d) => d.id !== docId);
+                const nextObj = { ...current, documents: nextDocs };
+                localStorage.setItem('demo_meta_tech_partner', JSON.stringify(nextObj));
+                return { metaTechPartnerOnboarding: nextObj };
+            });
+        },
+
+        toggleMetaPermission: (permId) => {
+            set((state) => {
+                const current = state.metaTechPartnerOnboarding;
+                const nextPerms = current.permissions.map((p) =>
+                    p.id === permId ? { ...p, approved: !p.approved } : p
+                );
+                const nextObj = { ...current, permissions: nextPerms };
+                localStorage.setItem('demo_meta_tech_partner', JSON.stringify(nextObj));
+                return { metaTechPartnerOnboarding: nextObj };
+            });
+        },
+
+        saveMetaOnboardingDraft: (formData = {}) => {
+            set((state) => {
+                const current = state.metaTechPartnerOnboarding;
+                const timestampStr = new Date().toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                const nextObj = {
+                    ...current,
+                    status: 'Draft',
+                    businessInfo: {
+                        ...current.businessInfo,
+                        ...formData,
+                    },
+                    activityHistory: [
+                        {
+                            id: `act-${Date.now()}`,
+                            action: 'Draft Saved',
+                            details: 'Application details saved locally in draft state.',
+                            timestamp: timestampStr,
+                            performedBy: 'Super Admin',
+                        },
+                        ...current.activityHistory,
+                    ],
+                };
+                localStorage.setItem('demo_meta_tech_partner', JSON.stringify(nextObj));
+                return { metaTechPartnerOnboarding: nextObj };
+            });
+        },
+
+        simulateMetaSubmission: () => {
+            set((state) => {
+                const current = state.metaTechPartnerOnboarding;
+                const timestampStr = new Date().toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                const nextObj = {
+                    ...current,
+                    status: 'Under Review',
+                    rejectionReason: '',
+                    progressPercentage: 85,
+                    activityHistory: [
+                        {
+                            id: `act-${Date.now()}`,
+                            action: 'Application Submitted',
+                            details: 'Simulated submission dispatched for Meta compliance review.',
+                            timestamp: timestampStr,
+                            performedBy: 'Super Admin',
+                        },
+                        ...current.activityHistory,
+                    ],
+                };
+                localStorage.setItem('demo_meta_tech_partner', JSON.stringify(nextObj));
+                return { metaTechPartnerOnboarding: nextObj };
+            });
+        },
+
+        simulateMetaApproval: () => {
+            set((state) => {
+                const current = state.metaTechPartnerOnboarding;
+                const timestampStr = new Date().toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                const nextObj = {
+                    ...current,
+                    status: 'Approved',
+                    rejectionReason: '',
+                    progressPercentage: 100,
+                    verificationChecklist: current.verificationChecklist.map((item) => ({ ...item, status: 'Verified' })),
+                    permissions: current.permissions.map((p) => ({ ...p, approved: true })),
+                    activityHistory: [
+                        {
+                            id: `act-${Date.now()}`,
+                            action: 'Status: Approved',
+                            details: 'Application approved! Granted Meta Verified Tech Partner tier.',
+                            timestamp: timestampStr,
+                            performedBy: 'Simulated Meta Reviewer',
+                        },
+                        ...current.activityHistory,
+                    ],
+                };
+                localStorage.setItem('demo_meta_tech_partner', JSON.stringify(nextObj));
+                return { metaTechPartnerOnboarding: nextObj };
+            });
+        },
+
+        simulateMetaRejection: (reason = 'Address verification document blurry or mismatched with corporate registry.') => {
+            set((state) => {
+                const current = state.metaTechPartnerOnboarding;
+                const timestampStr = new Date().toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                const nextObj = {
+                    ...current,
+                    status: 'Rejected',
+                    rejectionReason: reason,
+                    progressPercentage: 55,
+                    verificationChecklist: current.verificationChecklist.map((item) =>
+                        item.id === 'vc-2' ? { ...item, status: 'Action Required (Rejected)' } : item
+                    ),
+                    activityHistory: [
+                        {
+                            id: `act-${Date.now()}`,
+                            action: 'Status: Rejected',
+                            details: `Simulated rejection: ${reason}`,
+                            timestamp: timestampStr,
+                            performedBy: 'Simulated Meta Compliance Bot',
+                        },
+                        ...current.activityHistory,
+                    ],
+                };
+                localStorage.setItem('demo_meta_tech_partner', JSON.stringify(nextObj));
+                return { metaTechPartnerOnboarding: nextObj };
+            });
+        },
+
+        resubmitMetaApplication: () => {
+            set((state) => {
+                const current = state.metaTechPartnerOnboarding;
+                const timestampStr = new Date().toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                const nextObj = {
+                    ...current,
+                    status: 'Under Review',
+                    rejectionReason: '',
+                    progressPercentage: 90,
+                    verificationChecklist: current.verificationChecklist.map((item) => ({ ...item, status: 'Pending Review' })),
+                    activityHistory: [
+                        {
+                            id: `act-${Date.now()}`,
+                            action: 'Application Resubmitted',
+                            details: 'Resubmitted updated verification documents following rejection feedback.',
+                            timestamp: timestampStr,
+                            performedBy: 'Super Admin',
+                        },
+                        ...current.activityHistory,
+                    ],
+                };
+                localStorage.setItem('demo_meta_tech_partner', JSON.stringify(nextObj));
+                return { metaTechPartnerOnboarding: nextObj };
+            });
         },
 
         login: (backendRole, userData, customerAccount = null) => {

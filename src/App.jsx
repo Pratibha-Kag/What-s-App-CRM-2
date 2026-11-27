@@ -25,6 +25,12 @@ import CustomerWallet from './pages/CustomerWallet'
 import SuperAdminBilling from './pages/SuperAdminBilling'
 import LeadSources from './pages/LeadSources'
 import ExternalSoftwareIntegrations from './pages/ExternalSoftwareIntegrations'
+import GoogleScraper from './pages/GoogleScraper'
+import MetaTechPartnerOnboarding from './pages/MetaTechPartnerOnboarding'
+import PrivacyPolicy from './pages/public/PrivacyPolicy'
+import RefundPolicy from './pages/public/RefundPolicy'
+import TermsAndConditions from './pages/public/TermsAndConditions'
+import BusinessInfo from './pages/public/BusinessInfo'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,6 +58,14 @@ function AppRoutes() {
         <Route element={<PublicLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/refund-policy" element={<RefundPolicy />} />
+          <Route path="/refund" element={<RefundPolicy />} />
+          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+          <Route path="/terms" element={<TermsAndConditions />} />
+          <Route path="/business-info" element={<BusinessInfo />} />
+          <Route path="/business-information" element={<BusinessInfo />} />
         </Route>
 
         {/* Auth Route */}
@@ -88,6 +102,10 @@ function AppRoutes() {
             <Route path="/:rolePath/billing" element={<SuperAdminBilling />} />
             <Route path="/:rolePath/lead-sources" element={<LeadSources />} />
             <Route path="/:rolePath/external-integrations" element={<ExternalSoftwareIntegrations />} />
+            <Route path="/:rolePath/google-scraper" element={<GoogleScraper />} />
+            <Route path="/:rolePath/google-business" element={<GoogleScraper />} />
+            <Route path="/:rolePath/meta-onboarding" element={<MetaTechPartnerOnboarding />} />
+            <Route path="/:rolePath/meta-partner" element={<MetaTechPartnerOnboarding />} />
           </Route>
         </Route>
 

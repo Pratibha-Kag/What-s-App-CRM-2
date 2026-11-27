@@ -5,7 +5,7 @@ import { DEFAULT_BRANDING, getContrastTextColor, isValidHexColor } from '../../l
 import {
     LayoutDashboard, MessageSquare, LogOut,
     ChevronLeft, ChevronRight, Link2, Bot,
-    UserSquare, MessageCircle, Megaphone, Settings, X, Building2, Users as UsersIcon, Wallet, Target, Globe, Layers
+    UserSquare, MessageCircle, Megaphone, Settings, X, Building2, Users as UsersIcon, Wallet, Target, Globe, Layers, Compass, Award
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -82,9 +82,21 @@ const Sidebar = () => {
             roles: ['SUPER_ADMIN', 'ADMIN', 'CUSTOMER_ADMIN']
         },
         {
+            path: '/google-scraper',
+            label: 'Google Scraper',
+            icon: Compass,
+            roles: ['SUPER_ADMIN', 'ADMIN', 'CUSTOMER_ADMIN']
+        },
+        {
             path: '/customers',
             label: 'Customers',
             icon: Building2,
+            roles: ['SUPER_ADMIN']
+        },
+        {
+            path: '/meta-onboarding',
+            label: 'Meta Tech Partner',
+            icon: Award,
             roles: ['SUPER_ADMIN']
         },
         {

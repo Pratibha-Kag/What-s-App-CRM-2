@@ -40,3 +40,8 @@ Thumbs.db
 # Temp / Cache
 .eslintcache
 .vite/
+
+# Test artifacts & generated reports
+.playwright-mcp/
+test-results/
+playwright-report/

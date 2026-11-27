@@ -126,12 +126,14 @@ const PublicLayout = () => {
                         </div>
                         
                         <div>
-                            <h4 className="text-white font-black uppercase tracking-widest text-[10px] mb-6">Platform</h4>
-                            <ul className="space-y-4 text-xs font-bold tracking-wide">
+                            <h4 className="text-white font-black uppercase tracking-widest text-[10px] mb-6">Platform & Legal</h4>
+                            <ul className="space-y-3 text-xs font-bold tracking-wide">
                                 <li><Link to="/" className="hover:text-white transition-colors">Product Overview</Link></li>
-                                <li><Link to="/contact" className="hover:text-white transition-colors">Apply Now</Link></li>
-                                <li><Link to="/login" className="hover:text-white transition-colors">Counselor Portal</Link></li>
-                                <li><Link to="#" className="hover:text-white transition-colors">Student Dashboard</Link></li>
+                                <li><Link to="/contact" className="hover:text-white transition-colors">Apply & Contact</Link></li>
+                                <li><Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+                                <li><Link to="/terms-and-conditions" className="hover:text-white transition-colors">Terms & Conditions</Link></li>
+                                <li><Link to="/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link></li>
+                                <li><Link to="/business-info" className="hover:text-white transition-colors">Business Info</Link></li>
                             </ul>
                         </div>
                         
@@ -146,9 +148,11 @@ const PublicLayout = () => {
                     </div>
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
                         <p>&copy; {new Date().getFullYear()} WhatsApp CRM. All rights reserved.</p>
-                        <div className="flex gap-6">
-                            <Link to="#" className="hover:text-white transition-colors">Privacy Policy</Link>
-                            <Link to="#" className="hover:text-white transition-colors">Terms of Service</Link>
+                        <div className="flex flex-wrap gap-4 sm:gap-6 justify-center">
+                            <Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
+                            <Link to="/terms-and-conditions" className="hover:text-white transition-colors">Terms of Service</Link>
+                            <Link to="/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link>
+                            <Link to="/business-info" className="hover:text-white transition-colors">Business Information</Link>
                         </div>
                     </div>
                 </div>
