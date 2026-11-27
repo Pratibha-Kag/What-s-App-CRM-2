@@ -1,7 +1,16 @@
 import { create } from 'zustand'
 import {
+    buildDefaultIntegrationsForCustomer,
+    mockContacts,
     mockCustomerAccounts,
+    mockExternalIntegrationsByCustomer,
+    mockExternalSyncLogs,
+    mockExternalSyncPreview,
+    mockLeadAutomationConfig,
+    mockLeads,
+    mockLeadSources,
     mockMessagePricing,
+    mockUsers,
     mockWalletTransactions,
 } from '../mock/mockData'
 import { DEFAULT_BRANDING, applyBrandingCssVars } from '../lib/brandingUtils'
@@ -66,6 +75,13 @@ const useAppStore = create((set) => {
     const parsedCustomers = safeParseJson(localStorage.getItem('demo_customers'));
     const parsedTransactions = safeParseJson(localStorage.getItem('demo_wallet_transactions'));
     const parsedPricing = safeParseJson(localStorage.getItem('demo_message_pricing'));
+    const parsedLeads = safeParseJson(localStorage.getItem('demo_leads'));
+    const parsedContacts = safeParseJson(localStorage.getItem('demo_contacts'));
+    const parsedLeadSources = safeParseJson(localStorage.getItem('demo_lead_sources'));
+    const parsedAutomation = safeParseJson(localStorage.getItem('demo_lead_automation'));
+    const parsedExtIntegrations = safeParseJson(localStorage.getItem('demo_external_integrations'));
+    const parsedExtLogs = safeParseJson(localStorage.getItem('demo_external_sync_logs'));
+    const parsedExtPreview = safeParseJson(localStorage.getItem('demo_external_sync_preview'));
     const initialCustomers = Array.isArray(parsedCustomers) && parsedCustomers.length > 0
         ? parsedCustomers
         : mockCustomerAccounts;
@@ -75,6 +91,27 @@ const useAppStore = create((set) => {
     const initialPricing = parsedPricing && typeof parsedPricing === 'object'
         ? { ...mockMessagePricing, ...parsedPricing }
         : mockMessagePricing;
+    const initialLeads = Array.isArray(parsedLeads) && parsedLeads.length > 0
+        ? parsedLeads
+        : mockLeads;
+    const initialContacts = Array.isArray(parsedContacts) && parsedContacts.length > 0
+        ? parsedContacts
+        : mockContacts;
+    const initialLeadSources = Array.isArray(parsedLeadSources) && parsedLeadSources.length > 0
+        ? parsedLeadSources
+        : mockLeadSources;
+    const initialAutomation = parsedAutomation && typeof parsedAutomation === 'object'
+        ? { ...mockLeadAutomationConfig, ...parsedAutomation }
+        : mockLeadAutomationConfig;
+    const initialExtIntegrations = parsedExtIntegrations && typeof parsedExtIntegrations === 'object'
+        ? parsedExtIntegrations
+        : mockExternalIntegrationsByCustomer;
+    const initialExtLogs = Array.isArray(parsedExtLogs) && parsedExtLogs.length > 0
+        ? parsedExtLogs
+        : mockExternalSyncLogs;
+    const initialExtPreview = parsedExtPreview && typeof parsedExtPreview === 'object'
+        ? parsedExtPreview
+        : mockExternalSyncPreview;
     const initialBranding = { ...DEFAULT_BRANDING, ...(parsedBranding || {}) };
     applyBrandingCssVars(initialBranding);
 
@@ -96,6 +133,13 @@ const useAppStore = create((set) => {
         customers: initialCustomers,
         walletTransactions: initialTransactions,
         messagePricing: initialPricing,
+        leads: initialLeads,
+        contacts: initialContacts,
+        leadSources: initialLeadSources,
+        leadAutomationConfig: initialAutomation,
+        externalIntegrationsByCustomer: initialExtIntegrations,
+        externalSyncLogs: initialExtLogs,
+        externalSyncPreview: initialExtPreview,
         branding: initialBranding,
         country: parsedUser?.country || initialAccount?.country || 'Global',
         statusFilter: 'All Stages',
@@ -644,6 +688,688 @@ const useAppStore = create((set) => {
         resetMessagePricing: () => {
             localStorage.removeItem('demo_message_pricing');
             set({ messagePricing: mockMessagePricing });
+        },
+
+        // Phase 05: CRM Contacts, Leads, Duplicate Handling & Lead Source Integrations
+        findDuplicateMatch: ({ email, phone, excludeLeadId = null }) => {
+            let match = null;
+            set((state) => {
+                const targetEmail = String(email || '').trim().toLowerCase();
+                const normDigits = (v) => String(v || '').replace(/\D/g, '');
+                const samePhone = (a, b) => {
+                    const da = normDigits(a);
+                    const db = normDigits(b);
+                    if (da.length < 7 || db.length < 7) return false;
+                    return da === db || da.slice(-9) === db.slice(-9);
+                };
+                const existingLead = state.leads.find((l) => {
+                    if (excludeLeadId != null && String(l.id) === String(excludeLeadId)) return false;
+                    return (targetEmail && String(l.email || '').trim().toLowerCase() === targetEmail) || samePhone(phone, l.phone);
+                });
+                const existingContact = state.contacts.find((c) => {
+                    return (targetEmail && String(c.email || '').trim().toLowerCase() === targetEmail) || samePhone(phone, c.phone);
+                });
+                if (existingLead || existingContact) {
+                    const reasons = [];
+                    if (
+                        (existingLead && targetEmail && String(existingLead.email || '').trim().toLowerCase() === targetEmail) ||
+                        (existingContact && targetEmail && String(existingContact.email || '').trim().toLowerCase() === targetEmail)
+                    ) {
+                        reasons.push('Email');
+                    }
+                    if (
+                        (existingLead && samePhone(phone, existingLead.phone)) ||
+                        (existingContact && samePhone(phone, existingContact.phone))
+                    ) {
+                        reasons.push('Phone');
+                    }
+                    match = {
+                        existingLead: existingLead || null,
+                        existingContact: existingContact || null,
+                        matchedBy: reasons.join(' & ') || 'Email / Phone',
+                    };
+                }
+                return {};
+            });
+            return match;
+        },
+
+        addCrmLead: (leadData, { forceCreate = false } = {}) => {
+            let outcome = { ok: false };
+            set((state) => {
+                const targetCustomer =
+                    state.customers.find((c) => c.id === leadData.customerId) ||
+                    (state.selectedAccount?.id && state.selectedAccount.id !== 'platform'
+                        ? state.customers.find((c) => c.id === state.selectedAccount.id)
+                        : null) ||
+                    state.customers[0];
+
+                const targetEmail = String(leadData.email || '').trim().toLowerCase();
+                const normDigits = (v) => String(v || '').replace(/\D/g, '');
+                const samePhone = (a, b) => {
+                    const da = normDigits(a);
+                    const db = normDigits(b);
+                    if (da.length < 7 || db.length < 7) return false;
+                    return da === db || da.slice(-9) === db.slice(-9);
+                };
+
+                if (!forceCreate) {
+                    const existingLead = state.leads.find((l) =>
+                        (targetEmail && String(l.email || '').trim().toLowerCase() === targetEmail) || samePhone(leadData.phone, l.phone)
+                    );
+                    const existingContact = state.contacts.find((c) =>
+                        (targetEmail && String(c.email || '').trim().toLowerCase() === targetEmail) || samePhone(leadData.phone, c.phone)
+                    );
+                    if (existingLead || existingContact) {
+                        const reasons = [];
+                        if (
+                            (existingLead && targetEmail && String(existingLead.email || '').trim().toLowerCase() === targetEmail) ||
+                            (existingContact && targetEmail && String(existingContact.email || '').trim().toLowerCase() === targetEmail)
+                        ) {
+                            reasons.push('Email');
+                        }
+                        if (
+                            (existingLead && samePhone(leadData.phone, existingLead.phone)) ||
+                            (existingContact && samePhone(leadData.phone, existingContact.phone))
+                        ) {
+                            reasons.push('Phone');
+                        }
+                        outcome = {
+                            ok: false,
+                            duplicate: {
+                                existingLead: existingLead || null,
+                                existingContact: existingContact || null,
+                                matchedBy: reasons.join(' & ') || 'Email / Phone',
+                            },
+                        };
+                        return {};
+                    }
+                }
+
+                const nextId = Math.max(...state.leads.map((l) => Number(l.id) || 0), 100) + 1;
+                const assignedUser = mockUsers.find((u) => u.id === leadData.assigned_to);
+                const nowIso = new Date().toISOString();
+                const newLead = {
+                    id: nextId,
+                    customerId: targetCustomer?.id || 'cust-001',
+                    companyName: targetCustomer?.companyName || 'Apex Digital Solutions',
+                    name: String(leadData.name || 'New Lead').trim(),
+                    phone: String(leadData.phone || '').trim(),
+                    email: String(leadData.email || '').trim(),
+                    country: leadData.country || leadData.interested_country || targetCustomer?.country || 'Global',
+                    interested_country: leadData.country || leadData.interested_country || targetCustomer?.country || 'Global',
+                    qualification: leadData.qualification || leadData.academic_background || '-',
+                    academic_background: leadData.qualification || leadData.academic_background || '-',
+                    ielts_score: leadData.ielts_score || '-',
+                    source: leadData.source || 'WhatsApp',
+                    stage: leadData.stage || 'New',
+                    assigned_to: assignedUser?.id || leadData.assigned_to || null,
+                    assigned_name: assignedUser?.name || leadData.assigned_name || null,
+                    last_conversation_date: nowIso,
+                    next_followup_date: leadData.next_followup_date || null,
+                    created_at: nowIso,
+                };
+
+                const nextLeads = [newLead, ...state.leads];
+                localStorage.setItem('demo_leads', JSON.stringify(nextLeads));
+
+                // Also upsert into CRM Contacts if missing
+                const hasContact = state.contacts.some((c) =>
+                    (targetEmail && String(c.email || '').trim().toLowerCase() === targetEmail) || samePhone(newLead.phone, c.phone)
+                );
+                let nextContacts = state.contacts;
+                let contactAdded = false;
+                if (!hasContact) {
+                    const newContact = {
+                        id: `cnt-${Date.now().toString().slice(-5)}`,
+                        customerId: newLead.customerId,
+                        companyName: newLead.companyName,
+                        name: newLead.name,
+                        phone: newLead.phone,
+                        email: newLead.email,
+                        channel: newLead.source === 'Meta Ads' || newLead.source === 'Facebook' ? 'Meta Ads' : newLead.source,
+                        source: newLead.source,
+                        label: newLead.stage === 'Converted' ? 'VIP Customer' : `${newLead.stage} Lead`,
+                        lastContacted: 'Just now',
+                        customerSince: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                        orders: [],
+                        activities: [
+                            {
+                                id: `cact-${Date.now()}`,
+                                title: `Lead captured from ${newLead.source}`,
+                                time: 'Just now',
+                                detail: `Added to ${newLead.companyName} (${newLead.country || 'Global'})`,
+                            },
+                        ],
+                    };
+                    nextContacts = [newContact, ...state.contacts];
+                    localStorage.setItem('demo_contacts', JSON.stringify(nextContacts));
+                    contactAdded = true;
+                }
+
+                // Sync customer dashboard counts & recent activity/leads
+                const nextCustomers = state.customers.map((cust) => {
+                    if (cust.id !== newLead.customerId) return cust;
+                    return {
+                        ...cust,
+                        leadsCount: (Number(cust.leadsCount) || 0) + 1,
+                        contactsCount: (Number(cust.contactsCount) || 0) + (contactAdded ? 1 : 0),
+                        conversionsCount: (Number(cust.conversionsCount) || 0) + (newLead.stage === 'Converted' ? 1 : 0),
+                        recentLeads: [
+                            {
+                                id: `lead-${newLead.id}`,
+                                name: newLead.name,
+                                phone: newLead.phone || newLead.email,
+                                stage: newLead.stage,
+                                source: newLead.source,
+                                updatedAt: 'Just now',
+                            },
+                            ...(cust.recentLeads || []).slice(0, 4),
+                        ],
+                        recentActivity: [
+                            {
+                                id: `act-${Date.now()}`,
+                                action: `New ${newLead.source} lead captured: ${newLead.name}`,
+                                time: 'Just now',
+                                actor: state.user?.name || 'CRM Sync (Demo)',
+                            },
+                            ...(cust.recentActivity || []).slice(0, 6),
+                        ],
+                    };
+                });
+                localStorage.setItem('demo_customers', JSON.stringify(nextCustomers));
+
+                const nextSelected = state.selectedAccount?.id === newLead.customerId
+                    ? nextCustomers.find((c) => c.id === newLead.customerId) || state.selectedAccount
+                    : state.selectedAccount;
+                if (nextSelected && state.selectedAccount?.id === newLead.customerId) {
+                    localStorage.setItem('demo_customer_account', JSON.stringify(nextSelected));
+                }
+
+                outcome = { ok: true, lead: newLead, contactAdded };
+                return {
+                    leads: nextLeads,
+                    contacts: nextContacts,
+                    customers: nextCustomers,
+                    selectedAccount: nextSelected,
+                };
+            });
+            return outcome;
+        },
+
+        mergeDuplicateLead: ({ existingLeadId, existingContactId = null, incomingLead }) => {
+            let mergedRecord = null;
+            set((state) => {
+                const nowIso = new Date().toISOString();
+                let affectedCustomerId = null;
+
+                const nextLeads = state.leads.map((l) => {
+                    if (String(l.id) !== String(existingLeadId)) return l;
+                    affectedCustomerId = l.customerId;
+                    mergedRecord = {
+                        ...l,
+                        name: incomingLead.name || l.name,
+                        phone: incomingLead.phone || l.phone,
+                        email: incomingLead.email || l.email,
+                        country: incomingLead.country || l.country,
+                        interested_country: incomingLead.country || l.interested_country,
+                        qualification: incomingLead.qualification || l.qualification,
+                        academic_background: incomingLead.qualification || l.academic_background,
+                        ielts_score: incomingLead.ielts_score || l.ielts_score,
+                        last_conversation_date: nowIso,
+                    };
+                    return mergedRecord;
+                });
+                localStorage.setItem('demo_leads', JSON.stringify(nextLeads));
+
+                const nextContacts = state.contacts.map((c) => {
+                    const isMatch = existingContactId
+                        ? c.id === existingContactId
+                        : mergedRecord && (
+                            (mergedRecord.email && String(c.email || '').toLowerCase() === String(mergedRecord.email).toLowerCase()) ||
+                            (mergedRecord.phone && String(c.phone || '').replace(/\D/g, '').slice(-9) === String(mergedRecord.phone).replace(/\D/g, '').slice(-9))
+                        );
+                    if (!isMatch) return c;
+                    affectedCustomerId = affectedCustomerId || c.customerId;
+                    return {
+                        ...c,
+                        name: incomingLead.name || c.name,
+                        phone: incomingLead.phone || c.phone,
+                        email: incomingLead.email || c.email,
+                        lastContacted: 'Just now',
+                        activities: [
+                            {
+                                id: `cact-${Date.now()}`,
+                                title: `Duplicate merged from ${incomingLead.source || 'Lead Source'}`,
+                                time: 'Just now',
+                                detail: 'Updated existing CRM profile with incoming submission.',
+                            },
+                            ...(c.activities || []),
+                        ],
+                    };
+                });
+                localStorage.setItem('demo_contacts', JSON.stringify(nextContacts));
+
+                const nextCustomers = state.customers.map((cust) => {
+                    if (cust.id !== affectedCustomerId) return cust;
+                    return {
+                        ...cust,
+                        recentActivity: [
+                            {
+                                id: `act-${Date.now()}`,
+                                action: `Duplicate lead merged for ${mergedRecord?.name || incomingLead.name}`,
+                                time: 'Just now',
+                                actor: state.user?.name || 'Duplicate Reviewer',
+                            },
+                            ...(cust.recentActivity || []).slice(0, 6),
+                        ],
+                    };
+                });
+                localStorage.setItem('demo_customers', JSON.stringify(nextCustomers));
+
+                return {
+                    leads: nextLeads,
+                    contacts: nextContacts,
+                    customers: nextCustomers,
+                };
+            });
+            return mergedRecord;
+        },
+
+        updateCrmLead: (leadId, updates) => {
+            set((state) => {
+                let customerDelta = null;
+                const nextLeads = state.leads.map((lead) => {
+                    if (String(lead.id) !== String(leadId)) return lead;
+                    const prevConverted = lead.stage === 'Converted';
+                    const nextStage = updates.stage !== undefined ? updates.stage : lead.stage;
+                    const nextConverted = nextStage === 'Converted';
+                    if (prevConverted !== nextConverted) {
+                        customerDelta = {
+                            customerId: lead.customerId,
+                            delta: nextConverted ? 1 : -1,
+                            leadName: updates.name || lead.name,
+                            nextStage,
+                        };
+                    }
+                    const nextCustomer = updates.customerId
+                        ? state.customers.find((c) => c.id === updates.customerId)
+                        : null;
+                    return {
+                        ...lead,
+                        ...updates,
+                        interested_country: updates.country ?? lead.interested_country,
+                        academic_background: updates.qualification ?? lead.academic_background,
+                        companyName: nextCustomer ? nextCustomer.companyName : lead.companyName,
+                    };
+                });
+                localStorage.setItem('demo_leads', JSON.stringify(nextLeads));
+
+                let nextCustomers = state.customers;
+                let nextSelected = state.selectedAccount;
+                if (customerDelta) {
+                    nextCustomers = state.customers.map((cust) => {
+                        if (cust.id !== customerDelta.customerId) return cust;
+                        return {
+                            ...cust,
+                            conversionsCount: Math.max(0, (Number(cust.conversionsCount) || 0) + customerDelta.delta),
+                            recentActivity: [
+                                {
+                                    id: `act-${Date.now()}`,
+                                    action: `${customerDelta.leadName} stage changed to ${customerDelta.nextStage}`,
+                                    time: 'Just now',
+                                    actor: state.user?.name || 'CRM Operator',
+                                },
+                                ...(cust.recentActivity || []).slice(0, 6),
+                            ],
+                        };
+                    });
+                    localStorage.setItem('demo_customers', JSON.stringify(nextCustomers));
+                    if (state.selectedAccount?.id === customerDelta.customerId) {
+                        nextSelected = nextCustomers.find((c) => c.id === customerDelta.customerId) || state.selectedAccount;
+                        localStorage.setItem('demo_customer_account', JSON.stringify(nextSelected));
+                    }
+                }
+
+                return {
+                    leads: nextLeads,
+                    customers: nextCustomers,
+                    selectedAccount: nextSelected,
+                };
+            });
+        },
+
+        assignCrmLead: (leadId, assigneeId) => {
+            const assignedUser = mockUsers.find((u) => u.id === assigneeId);
+            set((state) => {
+                const nextLeads = state.leads.map((lead) =>
+                    String(lead.id) === String(leadId)
+                        ? {
+                              ...lead,
+                              assigned_to: assigneeId || null,
+                              assigned_name: assignedUser ? assignedUser.name : null,
+                          }
+                        : lead
+                );
+                localStorage.setItem('demo_leads', JSON.stringify(nextLeads));
+                return { leads: nextLeads };
+            });
+        },
+
+        updateLeadSource: (sourceId, updates) => {
+            set((state) => {
+                const nextSources = state.leadSources.map((src) => {
+                    if (src.id !== sourceId) return src;
+                    return {
+                        ...src,
+                        ...updates,
+                        config: updates.config ? { ...src.config, ...updates.config } : src.config,
+                        fieldMapping: updates.fieldMapping ? { ...src.fieldMapping, ...updates.fieldMapping } : src.fieldMapping,
+                    };
+                });
+                localStorage.setItem('demo_lead_sources', JSON.stringify(nextSources));
+                return { leadSources: nextSources };
+            });
+        },
+
+        testLeadSourceConnection: (sourceId) => {
+            let updatedSource = null;
+            set((state) => {
+                const nowStr = `${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().slice(0, 5)}`;
+                const nextSources = state.leadSources.map((src) => {
+                    if (src.id !== sourceId) return src;
+                    updatedSource = {
+                        ...src,
+                        connected: true,
+                        lastSync: nowStr,
+                        lastTestStatus: 'Connection verified (Demo 200 OK)',
+                    };
+                    return updatedSource;
+                });
+                localStorage.setItem('demo_lead_sources', JSON.stringify(nextSources));
+                return { leadSources: nextSources };
+            });
+            return updatedSource;
+        },
+
+        toggleLeadSource: (sourceId) => {
+            set((state) => {
+                const nextSources = state.leadSources.map((src) =>
+                    src.id === sourceId ? { ...src, enabled: !src.enabled } : src
+                );
+                localStorage.setItem('demo_lead_sources', JSON.stringify(nextSources));
+                return { leadSources: nextSources };
+            });
+        },
+
+        recordLeadSourceSync: (sourceId) => {
+            set((state) => {
+                const nowStr = `${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().slice(0, 5)}`;
+                const nextSources = state.leadSources.map((src) =>
+                    src.id === sourceId
+                        ? {
+                              ...src,
+                              connected: true,
+                              receivedCount: (Number(src.receivedCount) || 0) + 1,
+                              lastSync: nowStr,
+                          }
+                        : src
+                );
+                localStorage.setItem('demo_lead_sources', JSON.stringify(nextSources));
+                return { leadSources: nextSources };
+            });
+        },
+
+        updateLeadAutomationConfig: (updates) => {
+            set((state) => {
+                const next = { ...state.leadAutomationConfig, ...updates };
+                localStorage.setItem('demo_lead_automation', JSON.stringify(next));
+                return { leadAutomationConfig: next };
+            });
+        },
+
+        // Phase 06: External Software Integrations (Customer-scoped, Frontend-only)
+        updateExternalIntegration: (customerId, softwareId, updates) => {
+            set((state) => {
+                const custObj = state.customers.find((c) => c.id === customerId) || state.customers[0];
+                const currentList =
+                    state.externalIntegrationsByCustomer[customerId] ||
+                    buildDefaultIntegrationsForCustomer(custObj);
+                const nextList = currentList.map((item) =>
+                    item.id === softwareId ? { ...item, ...updates } : item
+                );
+                const nextMap = {
+                    ...state.externalIntegrationsByCustomer,
+                    [customerId]: nextList,
+                };
+                localStorage.setItem('demo_external_integrations', JSON.stringify(nextMap));
+                return { externalIntegrationsByCustomer: nextMap };
+            });
+        },
+
+        toggleExternalIntegration: (customerId, softwareId) => {
+            set((state) => {
+                const custObj = state.customers.find((c) => c.id === customerId) || state.customers[0];
+                const currentList =
+                    state.externalIntegrationsByCustomer[customerId] ||
+                    buildDefaultIntegrationsForCustomer(custObj);
+                const nextList = currentList.map((item) =>
+                    item.id === softwareId ? { ...item, enabled: !item.enabled } : item
+                );
+                const nextMap = {
+                    ...state.externalIntegrationsByCustomer,
+                    [customerId]: nextList,
+                };
+                localStorage.setItem('demo_external_integrations', JSON.stringify(nextMap));
+                return { externalIntegrationsByCustomer: nextMap };
+            });
+        },
+
+        testExternalIntegrationConnection: (customerId, softwareId, simulateFailure = false) => {
+            let outcome = { ok: !simulateFailure };
+            set((state) => {
+                const custObj = state.customers.find((c) => c.id === customerId) || state.customers[0];
+                const currentList =
+                    state.externalIntegrationsByCustomer[customerId] ||
+                    buildDefaultIntegrationsForCustomer(custObj);
+                const target = currentList.find((i) => i.id === softwareId);
+                if (!target) return {};
+
+                const now = new Date();
+                const dateStr = now.toISOString().split('T')[0];
+                const timeStr = `${dateStr} ${now.toTimeString().slice(0, 5)}`;
+
+                const nextList = currentList.map((item) => {
+                    if (item.id !== softwareId) return item;
+                    return {
+                        ...item,
+                        connected: !simulateFailure,
+                        lastConnectionResult: simulateFailure
+                            ? 'Simulated auth error: invalid demo key (401)'
+                            : 'Connected (Demo 200 OK)',
+                    };
+                });
+                const nextMap = { ...state.externalIntegrationsByCustomer, [customerId]: nextList };
+                localStorage.setItem('demo_external_integrations', JSON.stringify(nextMap));
+
+                const logEntry = {
+                    id: `LOG-${Math.floor(1000 + Math.random() * 8999)}`,
+                    customerId,
+                    customerName: custObj.companyName,
+                    softwareId,
+                    softwareName: target.softwareName,
+                    date: dateStr,
+                    timestamp: timeStr,
+                    action: 'Connection Test',
+                    recordsProcessed: 0,
+                    successRecords: 0,
+                    failedRecords: 0,
+                    status: simulateFailure ? 'Failed' : 'Success',
+                    message: simulateFailure
+                        ? `Simulated connection test failed for ${target.apiEndpoint}`
+                        : `Simulated connection test succeeded for ${target.apiEndpoint}`,
+                };
+                const nextLogs = [logEntry, ...state.externalSyncLogs];
+                localStorage.setItem('demo_external_sync_logs', JSON.stringify(nextLogs));
+
+                outcome = { ok: !simulateFailure, logEntry };
+                return {
+                    externalIntegrationsByCustomer: nextMap,
+                    externalSyncLogs: nextLogs,
+                };
+            });
+            return outcome;
+        },
+
+        runExternalSoftwareSync: (customerId, softwareId, simulatePartialFailure = false) => {
+            let result = { ok: false };
+            set((state) => {
+                const custObj = state.customers.find((c) => c.id === customerId) || state.customers[0];
+                const currentList =
+                    state.externalIntegrationsByCustomer[customerId] ||
+                    buildDefaultIntegrationsForCustomer(custObj);
+                const target = currentList.find((i) => i.id === softwareId);
+                if (!target) return {};
+
+                const now = new Date();
+                const dateStr = now.toISOString().split('T')[0];
+                const timeStr = `${dateStr} ${now.toTimeString().slice(0, 5)}`;
+                const batchSuccess = simulatePartialFailure ? 7 : 12;
+                const batchFailed = simulatePartialFailure ? 2 : 0;
+
+                const nextList = currentList.map((item) => {
+                    if (item.id !== softwareId) return item;
+                    return {
+                        ...item,
+                        connected: true,
+                        lastSync: timeStr,
+                        lastSyncStatus: simulatePartialFailure ? 'Partial Failed' : 'Synced',
+                        successCount: (Number(item.successCount) || 0) + batchSuccess,
+                        failedCount: (Number(item.failedCount) || 0) + batchFailed,
+                    };
+                });
+                const nextMap = { ...state.externalIntegrationsByCustomer, [customerId]: nextList };
+                localStorage.setItem('demo_external_integrations', JSON.stringify(nextMap));
+
+                const logEntry = {
+                    id: `LOG-${Math.floor(1000 + Math.random() * 8999)}`,
+                    customerId,
+                    customerName: custObj.companyName,
+                    softwareId,
+                    softwareName: target.softwareName,
+                    date: dateStr,
+                    timestamp: timeStr,
+                    action: 'Manual Sync',
+                    recordsProcessed: batchSuccess + batchFailed,
+                    successRecords: batchSuccess,
+                    failedRecords: batchFailed,
+                    status: simulatePartialFailure ? 'Failed' : 'Success',
+                    message: simulatePartialFailure
+                        ? `Synced ${batchSuccess} records; ${batchFailed} failed validation (demo).`
+                        : `Synchronized ${batchSuccess} customer, appointment & payment records.`,
+                };
+                const nextLogs = [logEntry, ...state.externalSyncLogs];
+                localStorage.setItem('demo_external_sync_logs', JSON.stringify(nextLogs));
+
+                const nextCustomersPreview = [
+                    {
+                        id: `EXT-C${Math.floor(300 + Math.random() * 699)}`,
+                        customerId,
+                        softwareId,
+                        softwareName: target.shortName || target.softwareName,
+                        name: `Synced Client (${target.category})`,
+                        phone: '+1 (555) 602-' + String(Math.floor(1000 + Math.random() * 8999)),
+                        email: `sync-${Date.now().toString().slice(-4)}@example.com`,
+                        status: simulatePartialFailure ? 'Failed' : 'Synced',
+                    },
+                    ...(state.externalSyncPreview.customers || []),
+                ].slice(0, 20);
+                const nextPreview = {
+                    ...state.externalSyncPreview,
+                    customers: nextCustomersPreview,
+                };
+                localStorage.setItem('demo_external_sync_preview', JSON.stringify(nextPreview));
+
+                result = { ok: true, logEntry, batchSuccess, batchFailed };
+                return {
+                    externalIntegrationsByCustomer: nextMap,
+                    externalSyncLogs: nextLogs,
+                    externalSyncPreview: nextPreview,
+                };
+            });
+            return result;
+        },
+
+        retryFailedSyncLog: (logId) => {
+            let retriedLog = null;
+            set((state) => {
+                const targetLog = state.externalSyncLogs.find((l) => l.id === logId);
+                if (!targetLog) return {};
+
+                const now = new Date();
+                const dateStr = now.toISOString().split('T')[0];
+                const timeStr = `${dateStr} ${now.toTimeString().slice(0, 5)}`;
+                const recoveredCount = Math.max(1, Number(targetLog.failedRecords) || 1);
+
+                const nextLogs = state.externalSyncLogs.map((l) =>
+                    l.id === logId
+                        ? {
+                              ...l,
+                              status: 'Success',
+                              action: 'Retry Sync',
+                              successRecords: (Number(l.successRecords) || 0) + recoveredCount,
+                              failedRecords: 0,
+                              timestamp: timeStr,
+                              message: `Retry succeeded: ${recoveredCount} previously failed record(s) synchronized.`,
+                          }
+                        : l
+                );
+                localStorage.setItem('demo_external_sync_logs', JSON.stringify(nextLogs));
+
+                const custObj = state.customers.find((c) => c.id === targetLog.customerId) || state.customers[0];
+                const currentList =
+                    state.externalIntegrationsByCustomer[targetLog.customerId] ||
+                    buildDefaultIntegrationsForCustomer(custObj);
+                const nextList = currentList.map((item) =>
+                    item.id === targetLog.softwareId
+                        ? {
+                              ...item,
+                              lastSync: timeStr,
+                              lastSyncStatus: 'Synced',
+                              successCount: (Number(item.successCount) || 0) + recoveredCount,
+                              failedCount: Math.max(0, (Number(item.failedCount) || 0) - recoveredCount),
+                          }
+                        : item
+                );
+                const nextMap = {
+                    ...state.externalIntegrationsByCustomer,
+                    [targetLog.customerId]: nextList,
+                };
+                localStorage.setItem('demo_external_integrations', JSON.stringify(nextMap));
+
+                const nextPreview = {
+                    ...state.externalSyncPreview,
+                    customers: (state.externalSyncPreview.customers || []).map((r) =>
+                        r.customerId === targetLog.customerId && r.softwareId === targetLog.softwareId
+                            ? { ...r, status: 'Synced' }
+                            : r
+                    ),
+                    appointments: (state.externalSyncPreview.appointments || []).map((r) =>
+                        r.customerId === targetLog.customerId && r.softwareId === targetLog.softwareId
+                            ? { ...r, syncStatus: 'Synced' }
+                            : r
+                    ),
+                };
+                localStorage.setItem('demo_external_sync_preview', JSON.stringify(nextPreview));
+
+                retriedLog = nextLogs.find((l) => l.id === logId);
+                return {
+                    externalSyncLogs: nextLogs,
+                    externalIntegrationsByCustomer: nextMap,
+                    externalSyncPreview: nextPreview,
+                };
+            });
+            return retriedLog;
         },
 
         login: (backendRole, userData, customerAccount = null) => {
