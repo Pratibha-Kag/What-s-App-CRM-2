@@ -114,7 +114,7 @@ const BirthdayAutomationSection = () => {
                         <div className="flex items-center gap-2">
                             <h2 className="text-base font-bold text-white">Automated Birthday Engine</h2>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                                Phase 5 Active
+                                Daily Auto-Scan Active
                             </span>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#8B5CF6]/15 text-[#8B5CF6] border border-[#8B5CF6]/30">
                                 Idempotency Active

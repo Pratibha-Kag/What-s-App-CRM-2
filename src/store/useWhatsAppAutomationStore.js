@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { initialWhatsAppAutomations, initialExecutionHistory, automationPresets } from '../mock/whatsapp/mockWhatsAppAutomations';
 import { initialWhatsAppFestivals, prebuiltFestivalPresets } from '../mock/whatsapp/mockWhatsAppFestivals';
 import { initialWhatsAppAppointments, initialConnectedSources, simulatedSyncIncomingPool } from '../mock/whatsapp/mockWhatsAppAppointments';
+import { initialWhatsAppPayments, initialConnectedPaymentSources, initialPaymentReminderRules, simulatedPaymentSyncIncomingPool } from '../mock/whatsapp/mockWhatsAppPayments';
 import useWhatsAppTemplateStore from './useWhatsAppTemplateStore';
 import useWhatsAppAudienceStore from './useWhatsAppAudienceStore';
 import { calculateUpcomingBirthdayInfo } from '../utils/birthdayUtils';
@@ -11,6 +12,9 @@ const HISTORY_STORAGE_KEY = 'whatsapp_crm_automation_history_dev1_v1';
 const FESTIVALS_STORAGE_KEY = 'whatsapp_crm_festivals_dev1_v1';
 const APPOINTMENTS_STORAGE_KEY = 'whatsapp_crm_appointments_dev1_v1';
 const SOURCES_STORAGE_KEY = 'whatsapp_crm_connected_sources_dev1_v1';
+const PAYMENTS_STORAGE_KEY = 'whatsapp_crm_payments_dev1_v1';
+const PAYMENT_SOURCES_STORAGE_KEY = 'whatsapp_crm_payment_sources_dev1_v1';
+const PAYMENT_RULES_STORAGE_KEY = 'whatsapp_crm_payment_rules_dev1_v1';
 
 const loadPersistedAutomations = () => {
     try {
@@ -117,18 +121,97 @@ const persistSources = (sources) => {
     }
 };
 
+const loadPersistedPayments = () => {
+    try {
+        const item = localStorage.getItem(PAYMENTS_STORAGE_KEY);
+        if (item) {
+            const parsed = JSON.parse(item);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch (err) {
+        console.warn('[WhatsApp Automations Store] Failed to load payments:', err);
+    }
+    return initialWhatsAppPayments;
+};
+
+const persistPayments = (payments) => {
+    try {
+        localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(payments));
+    } catch (err) {
+        console.warn('[WhatsApp Automations Store] Failed to persist payments:', err);
+    }
+};
+
+const loadPersistedPaymentSources = () => {
+    try {
+        const item = localStorage.getItem(PAYMENT_SOURCES_STORAGE_KEY);
+        if (item) {
+            const parsed = JSON.parse(item);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch (err) {
+        console.warn('[WhatsApp Automations Store] Failed to load payment sources:', err);
+    }
+    return initialConnectedPaymentSources;
+};
+
+const persistPaymentSources = (sources) => {
+    try {
+        localStorage.setItem(PAYMENT_SOURCES_STORAGE_KEY, JSON.stringify(sources));
+    } catch (err) {
+        console.warn('[WhatsApp Automations Store] Failed to persist payment sources:', err);
+    }
+};
+
+const loadPersistedPaymentRules = () => {
+    try {
+        const item = localStorage.getItem(PAYMENT_RULES_STORAGE_KEY);
+        if (item) {
+            const parsed = JSON.parse(item);
+            if (parsed && typeof parsed === 'object') return parsed;
+        }
+    } catch (err) {
+        console.warn('[WhatsApp Automations Store] Failed to load payment rules:', err);
+    }
+    return initialPaymentReminderRules;
+};
+
+const persistPaymentRules = (rules) => {
+    try {
+        localStorage.setItem(PAYMENT_RULES_STORAGE_KEY, JSON.stringify(rules));
+    } catch (err) {
+        console.warn('[WhatsApp Automations Store] Failed to persist payment rules:', err);
+    }
+};
+
 const useWhatsAppAutomationStore = create((set, get) => ({
     automations: loadPersistedAutomations(),
     executionHistory: loadPersistedHistory(),
     festivals: loadPersistedFestivals(),
     appointments: loadPersistedAppointments(),
     connectedSources: loadPersistedSources(),
+    payments: loadPersistedPayments(),
+    paymentSources: loadPersistedPaymentSources(),
+    paymentRules: loadPersistedPaymentRules(),
     presets: automationPresets,
     festivalPresets: prebuiltFestivalPresets,
 
     // Active Dashboard View Tab
-    activeTab: 'rules', // 'rules' | 'birthday' | 'festival' | 'appointments' | 'history'
+    activeTab: 'rules', // 'rules' | 'birthday' | 'festival' | 'appointments' | 'payments' | 'history'
     setActiveTab: (tab) => set({ activeTab: tab }),
+
+    // Payment Filter & UI States
+    isPaymentReminderConfigModalOpen: false,
+    isPaymentPartialModalOpen: false,
+    isPaymentDetailModalOpen: false,
+    selectedPaymentForAction: null,
+    selectedPaymentForDetail: null,
+    paymentSearchQuery: '',
+    paymentStatusFilter: 'all', // all | Pending | Partially Paid | Overdue | Paid
+    paymentDateFilter: 'all',   // all | today | this_week | overdue | upcoming | paid
+    paymentSourceFilter: 'all',
+    paymentPage: 1,
+    paymentPageSize: 8,
 
     // Filters for Automations Tab
     searchQuery: '',
@@ -949,6 +1032,291 @@ const useWhatsAppAutomationStore = create((set, get) => ({
     },
 
     // =========================================================================
+    // DEDICATED PHASE 7 PAYMENT REMINDER AUTOMATION WORKFLOWS
+    // =========================================================================
+    setPaymentSearchQuery: (query) => set({ paymentSearchQuery: query, paymentPage: 1 }),
+    setPaymentStatusFilter: (status) => set({ paymentStatusFilter: status, paymentPage: 1 }),
+    setPaymentDateFilter: (filter) => set({ paymentDateFilter: filter, paymentPage: 1 }),
+    setPaymentSourceFilter: (source) => set({ paymentSourceFilter: source, paymentPage: 1 }),
+    setPaymentPage: (page) => set({ paymentPage: page }),
+
+    openPaymentReminderConfigModal: () => set({ isPaymentReminderConfigModalOpen: true }),
+    closePaymentReminderConfigModal: () => set({ isPaymentReminderConfigModalOpen: false }),
+    openPaymentPartialModal: (payment) => set({ isPaymentPartialModalOpen: true, selectedPaymentForAction: payment }),
+    closePaymentPartialModal: () => set({ isPaymentPartialModalOpen: false, selectedPaymentForAction: null }),
+    openPaymentDetailModal: (payment) => set({ isPaymentDetailModalOpen: true, selectedPaymentForDetail: payment }),
+    closePaymentDetailModal: () => set({ isPaymentDetailModalOpen: false, selectedPaymentForDetail: null }),
+
+    updatePaymentRules: (rules) => {
+        persistPaymentRules(rules);
+        set({ paymentRules: rules, isPaymentReminderConfigModalOpen: false });
+    },
+
+    simulatePaymentDataSync: () => {
+        const currentPayments = get().payments;
+        const existingInvoiceNumbers = new Set(currentPayments.map(p => p.invoiceNumber));
+
+        const incoming = simulatedPaymentSyncIncomingPool.filter(p => !existingInvoiceNumbers.has(p.invoiceNumber));
+        const updatedPayments = [...incoming, ...currentPayments];
+        persistPayments(updatedPayments);
+
+        const now = new Date().toISOString();
+        const updatedSources = get().paymentSources.map(s => ({
+            ...s,
+            lastSyncedAt: now,
+            recordsCount: s.recordsCount + (s.id === 'quickbooks' ? 1 : s.id === 'zoho' ? 1 : s.id === 'razorpay' ? 1 : 0)
+        }));
+        persistPaymentSources(updatedSources);
+
+        set({
+            payments: updatedPayments,
+            paymentSources: updatedSources
+        });
+
+        return {
+            syncedCount: incoming.length,
+            sourcesUpdated: updatedSources.length
+        };
+    },
+
+    simulatePartialPayment: (invoiceId, amount, paymentMethod = 'UPI / GPay', referenceNote = '') => {
+        const target = get().payments.find(p => p.id === invoiceId);
+        if (!target) return { status: 'error', message: 'Invoice not found' };
+
+        const numAmount = parseFloat(amount);
+        if (isNaN(numAmount) || numAmount <= 0) {
+            return { status: 'error', message: 'Invalid payment amount' };
+        }
+
+        if (numAmount > target.outstandingAmount) {
+            return { 
+                status: 'error', 
+                message: `Payment amount (₹${numAmount.toLocaleString('en-IN')}) exceeds current outstanding balance (₹${target.outstandingAmount.toLocaleString('en-IN')})` 
+            };
+        }
+
+        const newPaidAmount = Math.min(target.totalAmount, (target.paidAmount || 0) + numAmount);
+        const newOutstanding = Math.max(0, target.totalAmount - newPaidAmount);
+        const isNowPaid = newOutstanding === 0;
+        const newStatus = isNowPaid ? 'Paid' : 'Partially Paid';
+        const newReminderStatus = isNowPaid ? 'Completed (All Halted)' : target.reminderStatus;
+
+        const newPaymentRecord = {
+            id: `tx-${Date.now()}`,
+            amount: numAmount,
+            paymentMethod,
+            referenceNote: referenceNote || 'Partial payment received',
+            paidAt: new Date().toISOString()
+        };
+
+        const updated = get().payments.map(p => {
+            if (p.id === invoiceId) {
+                return {
+                    ...p,
+                    paidAmount: newPaidAmount,
+                    outstandingAmount: newOutstanding,
+                    status: newStatus,
+                    reminderStatus: newReminderStatus,
+                    nextReminderAt: isNowPaid ? null : p.nextReminderAt,
+                    paymentsHistory: [newPaymentRecord, ...(p.paymentsHistory || [])],
+                    updatedAt: new Date().toISOString()
+                };
+            }
+            return p;
+        });
+
+        persistPayments(updated);
+        set({
+            payments: updated,
+            isPaymentPartialModalOpen: false,
+            selectedPaymentForAction: null
+        });
+
+        if (isNowPaid && get().paymentRules?.paymentReceived?.enabled) {
+            get().triggerEvent('crm.payment_received', {
+                invoiceId: target.invoiceNumber,
+                recipient: { name: target.customerName, phone: target.phone },
+                customerName: target.customerName,
+                totalAmount: target.totalAmount,
+                amountPaid: numAmount,
+                referenceId: newPaymentRecord.id
+            });
+        }
+
+        return {
+            status: 'success',
+            invoice: updated.find(p => p.id === invoiceId)
+        };
+    },
+
+    simulateFullPayment: (invoiceId, paymentMethod = 'Bank Transfer (NEFT)', referenceNote = 'Settled in full') => {
+        const target = get().payments.find(p => p.id === invoiceId);
+        if (!target) return { status: 'error', message: 'Invoice not found' };
+
+        const remainingBalance = target.outstandingAmount;
+        if (remainingBalance <= 0 || target.status === 'Paid') {
+            return { status: 'error', message: 'Invoice is already fully settled' };
+        }
+
+        const newPaymentRecord = {
+            id: `tx-${Date.now()}`,
+            amount: remainingBalance,
+            paymentMethod,
+            referenceNote: referenceNote || 'Full settlement',
+            paidAt: new Date().toISOString()
+        };
+
+        const updated = get().payments.map(p => {
+            if (p.id === invoiceId) {
+                return {
+                    ...p,
+                    paidAmount: p.totalAmount,
+                    outstandingAmount: 0,
+                    status: 'Paid',
+                    reminderStatus: 'Completed (All Halted)',
+                    nextReminderAt: null,
+                    paymentsHistory: [newPaymentRecord, ...(p.paymentsHistory || [])],
+                    updatedAt: new Date().toISOString()
+                };
+            }
+            return p;
+        });
+
+        persistPayments(updated);
+        set({
+            payments: updated,
+            isPaymentPartialModalOpen: false,
+            selectedPaymentForAction: null
+        });
+
+        if (get().paymentRules?.paymentReceived?.enabled) {
+            get().triggerEvent('crm.payment_received', {
+                invoiceId: target.invoiceNumber,
+                recipient: { name: target.customerName, phone: target.phone },
+                customerName: target.customerName,
+                totalAmount: target.totalAmount,
+                amountPaid: remainingBalance,
+                referenceId: newPaymentRecord.id
+            });
+        }
+
+        return {
+            status: 'success',
+            invoice: updated.find(p => p.id === invoiceId)
+        };
+    },
+
+    sendPaymentReminder: (invoiceId, reminderType = 'MANUAL') => {
+        const inv = get().payments.find(p => p.id === invoiceId);
+        if (!inv) return null;
+
+        if (inv.status === 'Paid' || inv.outstandingAmount <= 0) {
+            return {
+                status: 'Skipped',
+                reason: 'Invoice is already settled in full. All future reminders are halted.'
+            };
+        }
+
+        const nextCount = (inv.reminderCount || 0) + 1;
+        const occurrenceKey = `${inv.invoiceNumber}_${reminderType}_occ${nextCount}`;
+
+        const rule = get().automations.find(a => a.type === 'payment_reminder') || get().automations[0];
+
+        const records = get().executeAutomation(rule.id, {
+            isTest: false,
+            targetRecipient: { name: inv.customerName, phone: inv.phone },
+            occurrenceKey,
+            customPayload: {
+                invoiceNumber: inv.invoiceNumber,
+                reminderType,
+                occurrenceCount: nextCount,
+                customerName: inv.customerName,
+                totalAmount: inv.totalAmount,
+                paidAmount: inv.paidAmount,
+                outstandingAmount: inv.outstandingAmount,
+                currency: inv.currencySymbol || '₹',
+                dueDate: inv.dueDate,
+                demoPaymentLink: inv.demoPaymentLink
+            }
+        });
+
+        const statusLabel = `Sent (${nextCount})`;
+        const updated = get().payments.map(p => {
+            if (p.id === invoiceId) {
+                return {
+                    ...p,
+                    reminderStatus: statusLabel,
+                    reminderCount: nextCount,
+                    lastReminderAt: new Date().toISOString(),
+                    remindersSent: [
+                        {
+                            id: `rem-${Date.now()}`,
+                            type: reminderType,
+                            sentAt: new Date().toISOString(),
+                            status: 'Success',
+                            amountSnap: inv.outstandingAmount
+                        },
+                        ...(p.remindersSent || [])
+                    ],
+                    updatedAt: new Date().toISOString()
+                };
+            }
+            return p;
+        });
+
+        persistPayments(updated);
+        set({ payments: updated });
+
+        return records?.[0] || null;
+    },
+
+    getPaymentStats: () => {
+        const payments = get().payments || [];
+        const totalOutstanding = payments.reduce((acc, p) => p.status !== 'Paid' ? acc + (p.outstandingAmount || 0) : acc, 0);
+        const pendingCount = payments.filter(p => p.status === 'Pending').length;
+        const overdueCount = payments.filter(p => p.status === 'Overdue').length;
+        const partiallyPaidCount = payments.filter(p => p.status === 'Partially Paid').length;
+        const paidCount = payments.filter(p => p.status === 'Paid').length;
+
+        const rules = get().paymentRules || {};
+        let activeRules = 0;
+        if (rules.beforeDue?.enabled) activeRules++;
+        if (rules.onDue?.enabled) activeRules++;
+        if (rules.overdue?.enabled) activeRules++;
+        if (rules.paymentReceived?.enabled) activeRules++;
+
+        let remindersSent = 0;
+        payments.forEach(p => {
+            remindersSent += (p.remindersSent?.length || 0);
+        });
+
+        const upcomingReminders = payments.filter(p => p.status !== 'Paid' && p.nextReminderAt).length;
+
+        return {
+            totalOutstanding,
+            pendingCount,
+            overdueCount,
+            partiallyPaidCount,
+            paidCount,
+            activeRules,
+            remindersSent,
+            upcomingReminders
+        };
+    },
+
+    resetPaymentDemoData: () => {
+        persistPayments(initialWhatsAppPayments);
+        persistPaymentSources(initialConnectedPaymentSources);
+        persistPaymentRules(initialPaymentReminderRules);
+        set({
+            payments: initialWhatsAppPayments,
+            paymentSources: initialConnectedPaymentSources,
+            paymentRules: initialPaymentReminderRules,
+            paymentPage: 1
+        });
+    },
+
+    // =========================================================================
     // REUSABLE EXTERNAL TRIGGER HANDLER FOR PHASES 5, 6, 7
     // =========================================================================
     triggerEvent: (eventCode, payload = {}) => {
@@ -963,7 +1331,7 @@ const useWhatsAppAutomationStore = create((set, get) => ({
             const records = get().executeAutomation(auto.id, {
                 isTest: false,
                 targetRecipient: payload.recipient || null,
-                occurrenceKey: payload.appointmentId ? `${payload.appointmentId}:${eventCode}` : `event-${Date.now()}`,
+                occurrenceKey: payload.invoiceId ? `${payload.invoiceId}:${eventCode}` : payload.appointmentId ? `${payload.appointmentId}:${eventCode}` : `event-${Date.now()}`,
                 customPayload: payload
             });
             totalGenerated = [...totalGenerated, ...records];

@@ -96,6 +96,7 @@ const CsvCustomerImporter = ({ onImportSuccess, className = '' }) => {
     const [summary, setSummary] = useState({ total: 0, valid: 0, invalid: 0, duplicates: 0 });
     const [isProcessing, setIsProcessing] = useState(false);
     const [importFinished, setImportFinished] = useState(false);
+    const [excelNotice, setExcelNotice] = useState(null);
 
     // Trigger sample CSV download
     const handleDownloadSample = () => {
@@ -250,9 +251,11 @@ const CsvCustomerImporter = ({ onImportSuccess, className = '' }) => {
         const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
 
         if (isExcel) {
-            // Excel simulated parsing: provide feedback and load structured sample data
-            processCSVData(sampleCsvDownloadText, file.name, 'excel');
+            setExcelNotice(file.name);
+            setIsParsed(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         } else {
+            setExcelNotice(null);
             // Native CSV browser-side FileReader
             const reader = new FileReader();
             reader.onload = (event) => {
@@ -282,8 +285,10 @@ const CsvCustomerImporter = ({ onImportSuccess, className = '' }) => {
 
         const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
         if (isExcel) {
-            processCSVData(sampleCsvDownloadText, file.name, 'excel');
+            setExcelNotice(file.name);
+            setIsParsed(false);
         } else {
+            setExcelNotice(null);
             const reader = new FileReader();
             reader.onload = (event) => {
                 const text = event.target?.result;
@@ -349,6 +354,48 @@ const CsvCustomerImporter = ({ onImportSuccess, className = '' }) => {
                     Download Sample CSV
                 </button>
             </div>
+
+            {/* Excel Dependency Guidance Notice */}
+            {excelNotice && (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs space-y-2.5 animate-fade-in">
+                    <div className="flex items-center justify-between">
+                        <span className="font-bold text-amber-400 flex items-center gap-2 text-sm">
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                            Excel Binary Parsing Requires SheetJS Approval
+                        </span>
+                        <button 
+                            type="button" 
+                            onClick={() => setExcelNotice(null)} 
+                            className="text-slate-400 hover:text-white"
+                        >
+                            <XCircle className="w-4 h-4" />
+                        </button>
+                    </div>
+                    <p className="text-slate-300 leading-relaxed">
+                        File <strong className="text-white font-mono bg-[#111318] px-1.5 py-0.5 rounded border border-[#2D333B]">{excelNotice}</strong> is an Excel workbook (.xlsx / .xls). Native browser-side extraction of binary Excel spreadsheets requires the <code className="text-purple-400 font-mono">xlsx</code> (SheetJS) library.
+                    </p>
+                    <p className="text-slate-400">
+                        To import your records immediately without waiting for dependency approval, please <strong>Save or Export your spreadsheet as CSV (.csv)</strong> and upload it, or download our validated template below.
+                    </p>
+                    <div className="flex items-center gap-3 pt-1">
+                        <button
+                            type="button"
+                            onClick={handleDownloadSample}
+                            className="px-3.5 py-1.5 rounded-xl bg-[#1C1F26] border border-[#2D333B] text-white hover:border-[#8B5CF6] text-xs font-semibold flex items-center gap-1.5"
+                        >
+                            <Download className="w-3.5 h-3.5 text-[#8B5CF6]" />
+                            Download Validated Sample CSV
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-3.5 py-1.5 rounded-xl bg-[#8B5CF6] text-white hover:bg-[#7C3AED] text-xs font-semibold"
+                        >
+                            Browse for .CSV File
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Upload Drag & Drop Area */}
             {!isParsed ? (
@@ -472,7 +519,7 @@ const CsvCustomerImporter = ({ onImportSuccess, className = '' }) => {
                             {/* Date of Birth */}
                             <div>
                                 <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                                    Date of Birth (DOB) <span className="text-slate-500">(Phase 5 Ready)</span>
+                                    Date of Birth (DOB) <span className="text-slate-500">(Annual Automation)</span>
                                 </label>
                                 <select
                                     value={mappings.dob}

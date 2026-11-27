@@ -1,16 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Search, Filter, Send, MessageSquare, Loader2, Check, CheckCheck, 
     MoreVertical, Info, Star, MessageSquareOff, ChevronDown, Bell,
     UserSquare, ShoppingBag, MessageSquareX, Ticket, AlertCircle, 
     RefreshCw, RotateCcw, ArrowLeft, Bot, Sparkles, Smartphone,
-    PowerOff, Power, Link2, ShieldCheck, CheckCircle2, Paperclip, Smile
+    PowerOff, Power, Link2, ShieldCheck, CheckCircle2, Paperclip, Smile,
+    FileText, Megaphone, Zap
 } from 'lucide-react';
 import useWhatsAppStore from '../store/useWhatsAppStore';
 import WhatsAppConnectModal from '../components/whatsapp/WhatsAppConnectModal';
 import WhatsAppDisconnectModal from '../components/whatsapp/WhatsAppDisconnectModal';
 import WhatsAppStatsBar from '../components/whatsapp/WhatsAppStatsBar';
+import TemplatesLibrary from './TemplatesLibrary';
+import CampaignsPage from './campaigns/CampaignsPage';
+import AutomationsPage from './automations/AutomationsPage';
 import { toast } from '../components/ui/Toast';
 
 const SimpleInbox = () => {
@@ -41,8 +46,17 @@ const SimpleInbox = () => {
 
     const [newMessage, setNewMessage] = useState('');
     const [retryingMsgId, setRetryingMsgId] = useState(null);
+    const [searchParams, setSearchParams] = useSearchParams();
     const messagesEndRef = useRef(null);
     const textareaRef = useRef(null);
+
+    const tabParam = searchParams.get('tab') || searchParams.get('module') || 'inbox';
+    const activeModule = (
+        tabParam === 'templates' ? 'templates' :
+        tabParam === 'campaigns' ? 'campaigns' :
+        ['automations', 'birthday', 'festival', 'appointments', 'payments', 'rules', 'history'].includes(tabParam) ? 'automations' :
+        'inbox'
+    );
 
     const selectedConv = conversations.find(c => c.id === selectedConvId) || conversations[0];
     const messages = selectedConv ? (messagesStore[selectedConv.id] || []) : [];
@@ -126,8 +140,87 @@ const SimpleInbox = () => {
 
     return (
         <div className="flex flex-col h-full bg-[#111318] text-white overflow-hidden font-sans">
-            {/* 1. TOP ACCOUNT & CONNECTION BANNER */}
-            <div className="bg-[#16181D] border-b border-[#1E232B] px-4 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            {/* WHATSAPP CRM MODULE SWITCHER */}
+            <div className="bg-[#14161C] border-b border-[#1E232B] px-4 py-2 flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+                    <button
+                        type="button"
+                        id="tab-btn-inbox"
+                        onClick={() => setSearchParams({ tab: 'inbox' })}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            activeModule === 'inbox'
+                                ? 'bg-[#8B5CF6] text-white shadow-sm'
+                                : 'bg-[#1C1F26] text-slate-300 hover:text-white hover:bg-[#252A34] border border-[#2D333B]'
+                        }`}
+                    >
+                        <MessageSquare size={13} />
+                        <span>Live Inbox &amp; Tracking</span>
+                    </button>
+                    <button
+                        type="button"
+                        id="tab-btn-templates"
+                        onClick={() => setSearchParams({ tab: 'templates' })}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            activeModule === 'templates'
+                                ? 'bg-[#8B5CF6] text-white shadow-sm'
+                                : 'bg-[#1C1F26] text-slate-300 hover:text-white hover:bg-[#252A34] border border-[#2D333B]'
+                        }`}
+                    >
+                        <FileText size={13} />
+                        <span>Templates Library</span>
+                    </button>
+                    <button
+                        type="button"
+                        id="tab-btn-campaigns"
+                        onClick={() => setSearchParams({ tab: 'campaigns' })}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            activeModule === 'campaigns'
+                                ? 'bg-[#8B5CF6] text-white shadow-sm'
+                                : 'bg-[#1C1F26] text-slate-300 hover:text-white hover:bg-[#252A34] border border-[#2D333B]'
+                        }`}
+                    >
+                        <Megaphone size={13} />
+                        <span>Campaigns &amp; Wizard</span>
+                    </button>
+                    <button
+                        type="button"
+                        id="tab-btn-automations"
+                        onClick={() => setSearchParams({ tab: 'automations' })}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            activeModule === 'automations'
+                                ? 'bg-[#8B5CF6] text-white shadow-sm'
+                                : 'bg-[#1C1F26] text-slate-300 hover:text-white hover:bg-[#252A34] border border-[#2D333B]'
+                        }`}
+                    >
+                        <Zap size={13} />
+                        <span>Trigger Automations</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Sub-module Views */}
+            {activeModule === 'templates' && (
+                <div className="flex-1 overflow-y-auto">
+                    <TemplatesLibrary />
+                </div>
+            )}
+
+            {activeModule === 'campaigns' && (
+                <div className="flex-1 overflow-y-auto">
+                    <CampaignsPage />
+                </div>
+            )}
+
+            {activeModule === 'automations' && (
+                <div className="flex-1 overflow-y-auto">
+                    <AutomationsPage />
+                </div>
+            )}
+
+            {activeModule === 'inbox' && (
+                <>
+                    {/* 1. TOP ACCOUNT & CONNECTION BANNER */}
+                    <div className="bg-[#16181D] border-b border-[#1E232B] px-4 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0">
                 {/* Account Status Info */}
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
@@ -567,6 +660,8 @@ const SimpleInbox = () => {
                     )}
                 </div>
             </div>
+            </>
+            )}
 
             {/* Modals */}
             <WhatsAppConnectModal />
