@@ -1,22 +1,26 @@
 import { create } from 'zustand';
 import { initialWhatsAppAutomations, initialExecutionHistory, automationPresets } from '../mock/whatsapp/mockWhatsAppAutomations';
+import { initialWhatsAppFestivals, prebuiltFestivalPresets } from '../mock/whatsapp/mockWhatsAppFestivals';
+import { initialWhatsAppAppointments, initialConnectedSources, simulatedSyncIncomingPool } from '../mock/whatsapp/mockWhatsAppAppointments';
 import useWhatsAppTemplateStore from './useWhatsAppTemplateStore';
 import useWhatsAppAudienceStore from './useWhatsAppAudienceStore';
+import { calculateUpcomingBirthdayInfo } from '../utils/birthdayUtils';
 
 const AUTOMATIONS_STORAGE_KEY = 'whatsapp_crm_automations_dev1_v1';
 const HISTORY_STORAGE_KEY = 'whatsapp_crm_automation_history_dev1_v1';
+const FESTIVALS_STORAGE_KEY = 'whatsapp_crm_festivals_dev1_v1';
+const APPOINTMENTS_STORAGE_KEY = 'whatsapp_crm_appointments_dev1_v1';
+const SOURCES_STORAGE_KEY = 'whatsapp_crm_connected_sources_dev1_v1';
 
 const loadPersistedAutomations = () => {
     try {
         const item = localStorage.getItem(AUTOMATIONS_STORAGE_KEY);
         if (item) {
             const parsed = JSON.parse(item);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                return parsed;
-            }
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
     } catch (err) {
-        console.warn('[WhatsApp Automations Store] Failed to load automations from localStorage:', err);
+        console.warn('[WhatsApp Automations Store] Failed to load automations:', err);
     }
     return initialWhatsAppAutomations;
 };
@@ -34,12 +38,10 @@ const loadPersistedHistory = () => {
         const item = localStorage.getItem(HISTORY_STORAGE_KEY);
         if (item) {
             const parsed = JSON.parse(item);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                return parsed;
-            }
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
     } catch (err) {
-        console.warn('[WhatsApp Automations Store] Failed to load history from localStorage:', err);
+        console.warn('[WhatsApp Automations Store] Failed to load history:', err);
     }
     return initialExecutionHistory;
 };
@@ -52,13 +54,80 @@ const persistHistory = (history) => {
     }
 };
 
+const loadPersistedFestivals = () => {
+    try {
+        const item = localStorage.getItem(FESTIVALS_STORAGE_KEY);
+        if (item) {
+            const parsed = JSON.parse(item);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch (err) {
+        console.warn('[WhatsApp Automations Store] Failed to load festivals:', err);
+    }
+    return initialWhatsAppFestivals;
+};
+
+const persistFestivals = (festivals) => {
+    try {
+        localStorage.setItem(FESTIVALS_STORAGE_KEY, JSON.stringify(festivals));
+    } catch (err) {
+        console.warn('[WhatsApp Automations Store] Failed to persist festivals:', err);
+    }
+};
+
+const loadPersistedAppointments = () => {
+    try {
+        const item = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
+        if (item) {
+            const parsed = JSON.parse(item);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch (err) {
+        console.warn('[WhatsApp Automations Store] Failed to load appointments:', err);
+    }
+    return initialWhatsAppAppointments;
+};
+
+const persistAppointments = (appointments) => {
+    try {
+        localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(appointments));
+    } catch (err) {
+        console.warn('[WhatsApp Automations Store] Failed to persist appointments:', err);
+    }
+};
+
+const loadPersistedSources = () => {
+    try {
+        const item = localStorage.getItem(SOURCES_STORAGE_KEY);
+        if (item) {
+            const parsed = JSON.parse(item);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch (err) {
+        console.warn('[WhatsApp Automations Store] Failed to load sources:', err);
+    }
+    return initialConnectedSources;
+};
+
+const persistSources = (sources) => {
+    try {
+        localStorage.setItem(SOURCES_STORAGE_KEY, JSON.stringify(sources));
+    } catch (err) {
+        console.warn('[WhatsApp Automations Store] Failed to persist sources:', err);
+    }
+};
+
 const useWhatsAppAutomationStore = create((set, get) => ({
     automations: loadPersistedAutomations(),
     executionHistory: loadPersistedHistory(),
+    festivals: loadPersistedFestivals(),
+    appointments: loadPersistedAppointments(),
+    connectedSources: loadPersistedSources(),
     presets: automationPresets,
+    festivalPresets: prebuiltFestivalPresets,
 
     // Active Dashboard View Tab
-    activeTab: 'automations', // 'automations' | 'history'
+    activeTab: 'rules', // 'rules' | 'birthday' | 'festival' | 'appointments' | 'history'
     setActiveTab: (tab) => set({ activeTab: tab }),
 
     // Filters for Automations Tab
@@ -74,6 +143,58 @@ const useWhatsAppAutomationStore = create((set, get) => ({
     historyAutomationFilter: 'All',
     historyPage: 1,
     historyPageSize: 8,
+
+    // Festival View State
+    festivalYearFilter: '2026',
+    setFestivalYearFilter: (year) => set({ festivalYearFilter: year }),
+    isFestivalModalOpen: false,
+    editingFestival: null,
+
+    // Appointment View State & Filters
+    appointmentFilterStatus: 'All', // 'All' | 'Scheduled' | 'Confirmed' | 'Completed' | 'Missed' | 'Rescheduled' | 'Cancelled'
+    appointmentFilterSource: 'All',
+    appointmentSearchQuery: '',
+    appointmentPage: 1,
+    appointmentPageSize: 6,
+
+    isRescheduleModalOpen: false,
+    appointmentToReschedule: null,
+
+    isAppointmentCancelModalOpen: false,
+    appointmentToCancel: null,
+
+    isAppointmentDetailModalOpen: false,
+    selectedAppointment: null,
+
+    isReminderConfigModalOpen: false,
+    activeReminderRule: null,
+
+    // Appointment Modal Controls
+    openRescheduleModal: (appt) => set({ appointmentToReschedule: appt, isRescheduleModalOpen: true }),
+    closeRescheduleModal: () => set({ appointmentToReschedule: null, isRescheduleModalOpen: false }),
+
+    openAppointmentCancelModal: (appt) => set({ appointmentToCancel: appt, isAppointmentCancelModalOpen: true }),
+    closeAppointmentCancelModal: () => set({ appointmentToCancel: null, isAppointmentCancelModalOpen: false }),
+
+    openAppointmentDetailModal: (appt) => set({ selectedAppointment: appt, isAppointmentDetailModalOpen: true }),
+    closeAppointmentDetailModal: () => set({ selectedAppointment: null, isAppointmentDetailModalOpen: false }),
+
+    openReminderConfigModal: (rule = null) => set({ activeReminderRule: rule, isReminderConfigModalOpen: true }),
+    closeReminderConfigModal: () => set({ activeReminderRule: null, isReminderConfigModalOpen: false }),
+
+    setAppointmentFilterStatus: (status) => set({ appointmentFilterStatus: status, appointmentPage: 1 }),
+    setAppointmentFilterSource: (source) => set({ appointmentFilterSource: source, appointmentPage: 1 }),
+    setAppointmentSearchQuery: (query) => set({ appointmentSearchQuery: query, appointmentPage: 1 }),
+    setAppointmentPage: (page) => set({ appointmentPage: page }),
+
+    openFestivalModal: (festToEdit = null) => set({
+        editingFestival: festToEdit,
+        isFestivalModalOpen: true
+    }),
+    closeFestivalModal: () => set({
+        editingFestival: null,
+        isFestivalModalOpen: false
+    }),
 
     // Filter Actions
     setSearchQuery: (query) => set({ searchQuery: query, currentPage: 1 }),
@@ -265,10 +386,6 @@ const useWhatsAppAutomationStore = create((set, get) => ({
     // =========================================================================
     // DUPLICATE MESSAGE PREVENTION MECHANISM (Reusable for Phases 4, 5, 6, 7)
     // =========================================================================
-    /**
-     * Checks if a message for this automation, recipient, and occurrence has already been delivered.
-     * Prevents sending duplicate messages for the same annual birthday, event milestone, or schedule.
-     */
     checkDuplicate: (automationId, recipientPhone, occurrenceKey) => {
         const cleanPhone = (recipientPhone || '').replace(/\D/g, '');
         const duplicateKey = `${automationId}:${cleanPhone}:${occurrenceKey}`;
@@ -294,41 +411,30 @@ const useWhatsAppAutomationStore = create((set, get) => ({
     // =========================================================================
     // COMMON EXECUTION SIMULATOR ENGINE (Reusable for Phases 4, 5, 6, 7)
     // =========================================================================
-    /**
-     * Reusable simulation method:
-     * - Validates automation status and template approval
-     * - Evaluates recipient eligibility
-     * - Checks duplicate prevention
-     * - Simulates delivery and records telemetry
-     */
     executeAutomation: (automationId, options = {}) => {
         const {
             isTest = false,
             targetRecipient = null,
-            occurrenceKey = new Date().toISOString().split('T')[0], // Default occurrence: today's date YYYY-MM-DD
+            occurrenceKey = new Date().toISOString().split('T')[0],
             customPayload = null
         } = options;
 
         const automation = get().automations.find(a => a.id === automationId);
         if (!automation) return [];
 
-        // Paused or Disabled automations cannot run live triggers
         if (!isTest && (automation.status === 'Paused' || automation.status === 'Disabled')) {
             console.warn(`[Automation Engine] Automation ${automationId} is ${automation.status}. Skipping execution.`);
             return [];
         }
 
-        // Validate template approval from template store
         const templateStore = useWhatsAppTemplateStore.getState();
         const activeTemplate = templateStore.templates.find(t => t.id === automation.templateId);
         const isTemplateValid = activeTemplate && activeTemplate.status === 'Approved';
 
-        // Determine target recipient list
         let recipientsToProcess = [];
         if (targetRecipient) {
             recipientsToProcess = [targetRecipient];
         } else {
-            // Retrieve from shared audience store
             const audienceStore = useWhatsAppAudienceStore.getState();
             const groupName = automation.audienceConfig?.group || 'All Contacts';
             if (groupName === 'All Contacts') {
@@ -355,7 +461,6 @@ const useWhatsAppAutomationStore = create((set, get) => ({
             const recipientPhone = recipient.phone || '';
             const recipientName = recipient.name || `Applicant ${idx + 1}`;
 
-            // Check Duplicate Prevention
             const duplicateCheck = get().checkDuplicate(automation.id, recipientPhone, occurrenceKey);
 
             let status = 'Success';
@@ -397,7 +502,6 @@ const useWhatsAppAutomationStore = create((set, get) => ({
             newRecords.push(record);
         });
 
-        // Update automation telemetry stats (only for non-test live runs)
         if (!isTest) {
             const currentStats = automation.stats || { totalRuns: 0, success: 0, failed: 0, skipped: 0 };
             get().updateAutomation(automation.id, {
@@ -410,7 +514,6 @@ const useWhatsAppAutomationStore = create((set, get) => ({
             });
         }
 
-        // Prepend new records to execution history
         const updatedHistory = [...newRecords, ...get().executionHistory];
         persistHistory(updatedHistory);
         set({ executionHistory: updatedHistory });
@@ -419,12 +522,435 @@ const useWhatsAppAutomationStore = create((set, get) => ({
     },
 
     // =========================================================================
+    // DEDICATED PHASE 5 BIRTHDAY AUTOMATION BATCH SIMULATOR
+    // =========================================================================
+    executeTodayBirthdayBroadcast: (refDate = new Date()) => {
+        const audienceStore = useWhatsAppAudienceStore.getState();
+        const birthdayRule = get().automations.find(a => a.type === 'birthday') || get().automations[0];
+        if (!birthdayRule) return { processed: 0, success: 0, skipped: 0, failed: 0 };
+
+        const todayKey = refDate.toISOString().split('T')[0];
+
+        const eligibleContacts = audienceStore.audiences.filter(c => {
+            const info = calculateUpcomingBirthdayInfo(c.dob, refDate);
+            return info.isValid && info.isToday;
+        });
+
+        if (eligibleContacts.length === 0) {
+            return { processed: 0, success: 0, skipped: 0, failed: 0, message: 'No contacts celebrate a birthday today.' };
+        }
+
+        let successCount = 0;
+        let skippedCount = 0;
+        let failedCount = 0;
+        const generatedRecords = [];
+
+        eligibleContacts.forEach(contact => {
+            const results = get().executeAutomation(birthdayRule.id, {
+                isTest: false,
+                targetRecipient: contact,
+                occurrenceKey: todayKey,
+                customPayload: { event: 'birthday', birthDate: contact.dob }
+            });
+
+            if (results && results.length > 0) {
+                generatedRecords.push(results[0]);
+                if (results[0].status === 'Success') successCount++;
+                else if (results[0].status === 'Skipped') skippedCount++;
+                else failedCount++;
+            }
+        });
+
+        return {
+            processed: eligibleContacts.length,
+            success: successCount,
+            skipped: skippedCount,
+            failed: failedCount,
+            records: generatedRecords
+        };
+    },
+
+    // =========================================================================
+    // DEDICATED PHASE 5 FESTIVAL CAMPAIGN ENGINE
+    // =========================================================================
+    createFestivalCampaign: (data) => {
+        const newFestival = {
+            id: `fest-${Date.now()}`,
+            name: data.name || 'Untitled Festival Broadcast',
+            festivalId: data.festivalId || 'custom',
+            festivalName: data.festivalName || 'Seasonal Festival',
+            year: data.year || '2026',
+            celebrationDate: data.celebrationDate || '2026-11-08',
+            audienceGroup: data.audienceGroup || 'All Contacts',
+            totalRecipients: data.totalRecipients || 16,
+            templateId: data.templateId || 'tpl-108',
+            templateName: data.templateName || 'festival_greetings',
+            templateCategory: 'Marketing',
+            templateSnapshot: data.templateSnapshot || null,
+            variableMappings: data.variableMappings || [],
+            scheduledTime: data.scheduledTime || '09:00',
+            timezone: data.timezone || 'GMT+5:30 (IST)',
+            status: data.status || 'Scheduled',
+            stats: { sent: 0, delivered: 0, read: 0, failed: 0 },
+            sentAt: null,
+            createdAt: new Date().toISOString()
+        };
+
+        const updated = [newFestival, ...get().festivals];
+        persistFestivals(updated);
+        set({ festivals: updated, isFestivalModalOpen: false, editingFestival: null });
+        return newFestival;
+    },
+
+    updateFestivalCampaign: (id, updates) => {
+        const updated = get().festivals.map(f => {
+            if (f.id === id) {
+                return { ...f, ...updates, updatedAt: new Date().toISOString() };
+            }
+            return f;
+        });
+        persistFestivals(updated);
+        set({ festivals: updated, isFestivalModalOpen: false, editingFestival: null });
+    },
+
+    deleteFestivalCampaign: (id) => {
+        const updated = get().festivals.filter(f => f.id !== id);
+        persistFestivals(updated);
+        set({ festivals: updated });
+    },
+
+    duplicateFestivalCampaign: (id) => {
+        const target = get().festivals.find(f => f.id === id);
+        if (!target) return null;
+
+        const clone = {
+            ...target,
+            id: `fest-${Date.now()}`,
+            name: `${target.name} (Copy)`,
+            status: 'Draft',
+            sentAt: null,
+            stats: { sent: 0, delivered: 0, read: 0, failed: 0 },
+            createdAt: new Date().toISOString()
+        };
+
+        const updated = [clone, ...get().festivals];
+        persistFestivals(updated);
+        set({ festivals: updated });
+        return clone;
+    },
+
+    sendFestivalNow: (id) => {
+        const target = get().festivals.find(f => f.id === id);
+        if (!target) return;
+
+        const audienceStore = useWhatsAppAudienceStore.getState();
+        const group = target.audienceGroup || 'All Contacts';
+        const recipients = group === 'All Contacts'
+            ? audienceStore.audiences
+            : audienceStore.audiences.filter(a => a.group === group);
+
+        const total = recipients.length || 12;
+        const occurrenceKey = `${target.id}:${target.year}:${target.celebrationDate}`;
+
+        const records = [];
+        let success = 0;
+        let failed = 0;
+
+        recipients.forEach((r, idx) => {
+            const isInvalid = r.phone?.includes('000') || (r.phone?.replace(/\D/g, '').length < 7);
+            const status = isInvalid ? 'Failed' : 'Success';
+            const reason = isInvalid ? 'Invalid phone number format' : 'Delivered via festival broadcast sandbox';
+
+            if (status === 'Success') success++;
+            else failed++;
+
+            records.push({
+                id: `exec-fest-${Date.now()}-${idx}`,
+                automationId: target.id,
+                automationName: target.name,
+                triggerType: 'SCHEDULE_ONCE',
+                recipientName: r.name,
+                recipientPhone: r.phone,
+                templateName: target.templateName,
+                templateSnapshot: target.templateSnapshot || { body: `Happy ${target.festivalName}!` },
+                status,
+                reason,
+                executedAt: new Date().toISOString(),
+                isTest: false,
+                duplicateKey: `${target.id}:${r.phone}:${occurrenceKey}`
+            });
+        });
+
+        get().updateFestivalCampaign(id, {
+            status: 'Completed',
+            sentAt: new Date().toISOString(),
+            totalRecipients: total,
+            stats: {
+                sent: total,
+                delivered: success,
+                read: Math.max(0, Math.round(success * 0.85)),
+                failed
+            }
+        });
+
+        const updatedHistory = [...records, ...get().executionHistory];
+        persistHistory(updatedHistory);
+        set({ executionHistory: updatedHistory });
+    },
+
+    updateFestivalDate: (presetId, year, newDate) => {
+        const updatedPresets = get().festivalPresets.map(p => {
+            if (p.id === presetId) {
+                return {
+                    ...p,
+                    yearlyDates: { ...p.yearlyDates, [year]: newDate }
+                };
+            }
+            return p;
+        });
+        set({ festivalPresets: updatedPresets });
+    },
+
+    // =========================================================================
+    // DEDICATED PHASE 6 APPOINTMENT AUTOMATION & WORKFLOW ENGINE
+    // =========================================================================
+    confirmAppointment: (id) => {
+        const updated = get().appointments.map(a => {
+            if (a.id === id) {
+                return { ...a, status: 'Confirmed', updatedAt: new Date().toISOString() };
+            }
+            return a;
+        });
+        persistAppointments(updated);
+        set({ appointments: updated });
+    },
+
+    completeAppointment: (id) => {
+        const updated = get().appointments.map(a => {
+            if (a.id === id) {
+                return { 
+                    ...a, 
+                    status: 'Completed', 
+                    reminderStatus: 'Completed (Reminders Stopped)',
+                    updatedAt: new Date().toISOString() 
+                };
+            }
+            return a;
+        });
+        persistAppointments(updated);
+        set({ appointments: updated });
+    },
+
+    markAppointmentMissed: (id) => {
+        const target = get().appointments.find(a => a.id === id);
+        if (!target) return;
+
+        const updated = get().appointments.map(a => {
+            if (a.id === id) {
+                return { 
+                    ...a, 
+                    status: 'Missed', 
+                    reminderStatus: 'Follow-up Dispatched',
+                    updatedAt: new Date().toISOString() 
+                };
+            }
+            return a;
+        });
+        persistAppointments(updated);
+        set({ appointments: updated });
+
+        // Trigger crm.appointment_status_missed event
+        get().triggerEvent('crm.appointment_status_missed', {
+            appointmentId: id,
+            recipient: { name: target.customerName, phone: target.phone },
+            appointmentType: target.appointmentType,
+            counselorName: target.counselorName,
+            scheduledDate: target.scheduledDate
+        });
+    },
+
+    rescheduleAppointment: (id, newDate, newTime, reason = '') => {
+        const target = get().appointments.find(a => a.id === id);
+        if (!target) return;
+
+        const previousDate = target.scheduledDate;
+        const previousTime = target.scheduledTime;
+
+        const updated = get().appointments.map(a => {
+            if (a.id === id) {
+                return { 
+                    ...a, 
+                    status: 'Rescheduled', 
+                    previousDate,
+                    previousTime,
+                    scheduledDate: newDate,
+                    scheduledTime: newTime,
+                    reminderStatus: 'Reschedule Notice Sent',
+                    rescheduleReason: reason,
+                    updatedAt: new Date().toISOString() 
+                };
+            }
+            return a;
+        });
+        persistAppointments(updated);
+        set({ 
+            appointments: updated,
+            isRescheduleModalOpen: false,
+            appointmentToReschedule: null
+        });
+
+        // Trigger crm.appointment_rescheduled event
+        get().triggerEvent('crm.appointment_rescheduled', {
+            appointmentId: id,
+            recipient: { name: target.customerName, phone: target.phone },
+            appointmentType: target.appointmentType,
+            counselorName: target.counselorName,
+            previousDate,
+            previousTime,
+            newDate,
+            newTime,
+            reason
+        });
+    },
+
+    cancelAppointment: (id, reason = '') => {
+        const target = get().appointments.find(a => a.id === id);
+        if (!target) return;
+
+        const updated = get().appointments.map(a => {
+            if (a.id === id) {
+                return { 
+                    ...a, 
+                    status: 'Cancelled', 
+                    reminderStatus: 'Cancellation Dispatched',
+                    cancellationReason: reason,
+                    updatedAt: new Date().toISOString() 
+                };
+            }
+            return a;
+        });
+        persistAppointments(updated);
+        set({ 
+            appointments: updated,
+            isAppointmentCancelModalOpen: false,
+            appointmentToCancel: null
+        });
+
+        // Trigger crm.appointment_cancelled event
+        get().triggerEvent('crm.appointment_cancelled', {
+            appointmentId: id,
+            recipient: { name: target.customerName, phone: target.phone },
+            appointmentType: target.appointmentType,
+            counselorName: target.counselorName,
+            cancellationReason: reason,
+            scheduledDate: target.scheduledDate
+        });
+    },
+
+    sendAppointmentReminder: (appointmentId, reminderType = '1_DAY_BEFORE') => {
+        const appt = get().appointments.find(a => a.id === appointmentId);
+        if (!appt) return null;
+
+        // Disallow reminders for Completed or Cancelled appointments
+        if (appt.status === 'Completed' || appt.status === 'Cancelled') {
+            return { status: 'Skipped', reason: 'Appointment is already completed or cancelled; reminder obsolete.' };
+        }
+
+        const rule = get().automations.find(a => a.type === 'appointment_reminder') || get().automations[0];
+        const occurrenceKey = `${appt.id}_${reminderType}`;
+
+        const records = get().executeAutomation(rule.id, {
+            isTest: false,
+            targetRecipient: { name: appt.customerName, phone: appt.phone },
+            occurrenceKey,
+            customPayload: {
+                appointmentId: appt.id,
+                reminderType,
+                scheduledDate: appt.scheduledDate,
+                scheduledTime: appt.scheduledTime,
+                appointmentType: appt.appointmentType,
+                counselorName: appt.counselorName
+            }
+        });
+
+        const statusLabel = reminderType === '1_DAY_BEFORE' ? '1-Day Sent' : 'Same-Day Sent';
+        const updated = get().appointments.map(a => {
+            if (a.id === appointmentId) {
+                return {
+                    ...a,
+                    reminderStatus: statusLabel,
+                    remindersSent: [
+                        ...a.remindersSent,
+                        { type: reminderType, sentAt: new Date().toISOString(), status: 'Success' }
+                    ],
+                    updatedAt: new Date().toISOString()
+                };
+            }
+            return a;
+        });
+        persistAppointments(updated);
+        set({ appointments: updated });
+
+        return records?.[0] || null;
+    },
+
+    simulateDataSync: () => {
+        const currentAppointments = get().appointments;
+        const existingIds = new Set(currentAppointments.map(a => a.id));
+
+        const incoming = simulatedSyncIncomingPool.filter(a => !existingIds.has(a.id));
+        const updatedAppointments = [...incoming, ...currentAppointments];
+        persistAppointments(updatedAppointments);
+
+        const now = new Date().toISOString();
+        const updatedSources = get().connectedSources.map(s => ({
+            ...s,
+            lastSyncedAt: now,
+            recordsCount: s.recordsCount + (s.id === 'calendly' ? 1 : s.id === 'hubspot' ? 1 : 0)
+        }));
+        persistSources(updatedSources);
+
+        set({
+            appointments: updatedAppointments,
+            connectedSources: updatedSources
+        });
+
+        return {
+            syncedCount: incoming.length,
+            sourcesUpdated: updatedSources.length
+        };
+    },
+
+    getAppointmentStats: () => {
+        const appointments = get().appointments;
+        const total = appointments.length;
+
+        const todayDate = new Date().toISOString().split('T')[0];
+        const today = appointments.filter(a => a.scheduledDate === todayDate).length;
+        const upcoming = appointments.filter(a => a.scheduledDate >= todayDate && ['Scheduled', 'Confirmed', 'Rescheduled'].includes(a.status)).length;
+        const completed = appointments.filter(a => a.status === 'Completed').length;
+        const missed = appointments.filter(a => a.status === 'Missed').length;
+        const cancelled = appointments.filter(a => a.status === 'Cancelled').length;
+
+        let remindersSent = 0;
+        appointments.forEach(a => {
+            remindersSent += (a.remindersSent?.length || 0);
+        });
+
+        return {
+            total,
+            today,
+            upcoming,
+            completed,
+            missed,
+            cancelled,
+            remindersSent
+        };
+    },
+
+    // =========================================================================
     // REUSABLE EXTERNAL TRIGGER HANDLER FOR PHASES 5, 6, 7
     // =========================================================================
-    /**
-     * Call this from Birthday, Festival, Appointment, or Invoicing events
-     * e.g. triggerEvent('crm.appointment_rescheduled', { appointment_id: 'appt-123', recipient: contact })
-     */
     triggerEvent: (eventCode, payload = {}) => {
         const matchingAutomations = get().automations.filter(a => 
             a.status === 'Active' && 
@@ -437,7 +963,7 @@ const useWhatsAppAutomationStore = create((set, get) => ({
             const records = get().executeAutomation(auto.id, {
                 isTest: false,
                 targetRecipient: payload.recipient || null,
-                occurrenceKey: payload.eventId || `event-${Date.now()}`,
+                occurrenceKey: payload.appointmentId ? `${payload.appointmentId}:${eventCode}` : `event-${Date.now()}`,
                 customPayload: payload
             });
             totalGenerated = [...totalGenerated, ...records];

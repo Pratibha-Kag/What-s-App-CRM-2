@@ -3,7 +3,8 @@ import {
     Zap, Plus, Search, Filter, Clock, CheckCircle2, 
     AlertTriangle, Play, Pause, Copy, Trash2, Eye, 
     Sparkles, ChevronLeft, ChevronRight, History, 
-    ShieldCheck, Calendar, Sliders, X, Radio, ArrowUpRight
+    ShieldCheck, Calendar, Sliders, X, Radio, ArrowUpRight,
+    Cake, Flame, CalendarClock
 } from 'lucide-react';
 import useWhatsAppAutomationStore from '../../store/useWhatsAppAutomationStore';
 import AutomationRuleBuilderModal from '../../components/whatsapp/automations/AutomationRuleBuilderModal';
@@ -12,6 +13,9 @@ import AutomationDetailsModal from '../../components/whatsapp/automations/Automa
 import AutomationDeleteModal from '../../components/whatsapp/automations/AutomationDeleteModal';
 import ExecutionHistoryDetailModal from '../../components/whatsapp/automations/ExecutionHistoryDetailModal';
 import ExecutionHistoryTable from '../../components/whatsapp/automations/ExecutionHistoryTable';
+import BirthdayAutomationSection from '../../components/whatsapp/automations/BirthdayAutomationSection';
+import FestivalAutomationSection from '../../components/whatsapp/automations/FestivalAutomationSection';
+import AppointmentAutomationSection from '../../components/whatsapp/automations/AppointmentAutomationSection';
 
 const AutomationsPage = () => {
     const {
@@ -214,13 +218,13 @@ const AutomationsPage = () => {
                 </div>
             </div>
 
-            {/* Tab Navigation: Automations vs Execution History */}
-            <div className="flex border-b border-[#2D333B]">
+            {/* Tab Navigation: Rules vs Birthday vs Festival vs Execution History */}
+            <div className="flex border-b border-[#2D333B] overflow-x-auto">
                 <button
                     type="button"
-                    onClick={() => setActiveTab('automations')}
-                    className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all ${
-                        activeTab === 'automations'
+                    onClick={() => setActiveTab('rules')}
+                    className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
+                        activeTab === 'rules' || activeTab === 'automations'
                             ? 'border-[#8B5CF6] text-white bg-[#16181D]/40'
                             : 'border-transparent text-slate-400 hover:text-white'
                     }`}
@@ -230,20 +234,65 @@ const AutomationsPage = () => {
                 </button>
                 <button
                     type="button"
+                    onClick={() => setActiveTab('birthday')}
+                    className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
+                        activeTab === 'birthday'
+                            ? 'border-[#EC4899] text-white bg-[#16181D]/40'
+                            : 'border-transparent text-slate-400 hover:text-white'
+                    }`}
+                >
+                    <Cake className="w-4 h-4 text-[#EC4899]" />
+                    Birthday Automation
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#EC4899]/15 text-[#EC4899] border border-[#EC4899]/30">
+                        Phase 5
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('festival')}
+                    className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
+                        activeTab === 'festival'
+                            ? 'border-[#F59E0B] text-white bg-[#16181D]/40'
+                            : 'border-transparent text-slate-400 hover:text-white'
+                    }`}
+                >
+                    <Flame className="w-4 h-4 text-[#F59E0B]" />
+                    Festival Automation
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#F59E0B]/15 text-[#F59E0B] border border-[#F59E0B]/30">
+                        Diwali &amp; Dussehra
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('appointments')}
+                    className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
+                        activeTab === 'appointments'
+                            ? 'border-indigo-400 text-white bg-[#16181D]/40'
+                            : 'border-transparent text-slate-400 hover:text-white'
+                    }`}
+                >
+                    <CalendarClock className="w-4 h-4 text-indigo-400" />
+                    Appointment Automation
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                        Phase 6
+                    </span>
+                </button>
+                <button
+                    type="button"
                     onClick={() => setActiveTab('history')}
-                    className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all ${
+                    className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
                         activeTab === 'history'
-                            ? 'border-[#8B5CF6] text-white bg-[#16181D]/40'
+                            ? 'border-cyan-400 text-white bg-[#16181D]/40'
                             : 'border-transparent text-slate-400 hover:text-white'
                     }`}
                 >
                     <History className="w-4 h-4 text-cyan-400" />
-                    Execution History &amp; Duplicate Telemetry
+                    Execution History &amp; Duplicate Logs
                 </button>
             </div>
 
-            {/* TAB 1: AUTOMATIONS LISTING */}
-            {activeTab === 'automations' && (
+            {/* TAB 1: COMMON AUTOMATION RULES */}
+            {(activeTab === 'rules' || activeTab === 'automations') && (
                 <div className="space-y-4">
                     {/* Search & Filter Controls */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#16181D] p-4 rounded-2xl border border-[#2D333B]">
@@ -532,7 +581,22 @@ const AutomationsPage = () => {
                 </div>
             )}
 
-            {/* TAB 2: EXECUTION HISTORY */}
+            {/* TAB 2: BIRTHDAY AUTOMATION */}
+            {activeTab === 'birthday' && (
+                <BirthdayAutomationSection />
+            )}
+
+            {/* TAB 3: FESTIVAL AUTOMATION */}
+            {activeTab === 'festival' && (
+                <FestivalAutomationSection />
+            )}
+
+            {/* TAB 4: APPOINTMENT AUTOMATION */}
+            {activeTab === 'appointments' && (
+                <AppointmentAutomationSection />
+            )}
+
+            {/* TAB 5: EXECUTION HISTORY */}
             {activeTab === 'history' && (
                 <ExecutionHistoryTable />
             )}

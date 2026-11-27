@@ -137,6 +137,50 @@ export const initialWhatsAppAudiences = [
         city: 'Dhaka',
         importSource: 'CSV_IMPORT',
         createdAt: '2026-08-25T15:00:00.000Z'
+    },
+    {
+        id: 'aud-013',
+        name: 'Elena Rostova',
+        phone: '+44 7911 123456',
+        dob: '', // Missing DOB
+        email: 'elena.rostova@oxford.ac.uk',
+        group: 'Admissions Inquiries',
+        city: 'London',
+        importSource: 'CRM_SYNC',
+        createdAt: '2026-08-26T10:00:00.000Z'
+    },
+    {
+        id: 'aud-014',
+        name: 'Liam O\'Connor',
+        phone: '+353 87 123 4567',
+        dob: 'invalid-date-format', // Invalid DOB
+        email: 'liam.oconnor@tcd.ie',
+        group: 'UK Applicants',
+        city: 'Dublin',
+        importSource: 'CSV_IMPORT',
+        createdAt: '2026-08-26T11:00:00.000Z'
+    },
+    {
+        id: 'aud-015',
+        name: 'Priya Sharma',
+        phone: '+91 97112 34567',
+        dob: '2000-11-29', // Upcoming in 2 days from Nov 27
+        email: 'priya.sharma@delhi.edu',
+        group: 'VIP Leads',
+        city: 'New Delhi',
+        importSource: 'CRM_SYNC',
+        createdAt: '2026-08-27T09:00:00.000Z'
+    },
+    {
+        id: 'aud-016',
+        name: 'Lucas Silva',
+        phone: '+55 11 98765-4321',
+        dob: '1999-12-02', // Upcoming in 5 days from Nov 27
+        email: 'lucas.silva@usp.br',
+        group: 'Undergraduate STEM',
+        city: 'São Paulo',
+        importSource: 'CRM_SYNC',
+        createdAt: '2026-08-27T14:30:00.000Z'
     }
 ];
 
