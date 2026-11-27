@@ -23,6 +23,8 @@ import Notifications from './pages/Notifications'
 import Customers from './pages/Customers'
 import CustomerWallet from './pages/CustomerWallet'
 import SuperAdminBilling from './pages/SuperAdminBilling'
+import LeadSources from './pages/LeadSources'
+import ExternalSoftwareIntegrations from './pages/ExternalSoftwareIntegrations'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,6 +86,8 @@ function AppRoutes() {
             <Route path="/:rolePath/customers" element={<Customers />} />
             <Route path="/:rolePath/wallet" element={<CustomerWallet />} />
             <Route path="/:rolePath/billing" element={<SuperAdminBilling />} />
+            <Route path="/:rolePath/lead-sources" element={<LeadSources />} />
+            <Route path="/:rolePath/external-integrations" element={<ExternalSoftwareIntegrations />} />
           </Route>
         </Route>
 

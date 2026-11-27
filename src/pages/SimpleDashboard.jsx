@@ -5,13 +5,12 @@ import {
     ChevronRight, Activity
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { mockLeads } from '../mock/mockData';
 import useAppStore, { normalizeRoleKey } from '../store/useStore';
 import SuperAdminDashboard from './SuperAdminDashboard';
 import CustomerAdminDashboard from './CustomerAdminDashboard';
 
 const SimpleDashboard = () => {
-    const { role } = useAppStore();
+    const { role, leads } = useAppStore();
     const roleKey = normalizeRoleKey(role);
 
     if (roleKey === 'SUPER_ADMIN') {
@@ -23,7 +22,6 @@ const SimpleDashboard = () => {
     }
 
     // Preserved dashboard for Manager, Team Leader, Customer Support, and Counselor
-    const leads = mockLeads;
     const isLoading = false;
     const totalLeads = leads.length;
     const pendingLeads = leads.filter(l => l.stage === 'New' || l.stage === 'Follow-up').length;

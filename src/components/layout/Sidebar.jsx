@@ -5,7 +5,7 @@ import { DEFAULT_BRANDING, getContrastTextColor, isValidHexColor } from '../../l
 import {
     LayoutDashboard, MessageSquare, LogOut,
     ChevronLeft, ChevronRight, Link2, Bot,
-    UserSquare, MessageCircle, Megaphone, Settings, X, Building2, Users as UsersIcon, Wallet
+    UserSquare, MessageCircle, Megaphone, Settings, X, Building2, Users as UsersIcon, Wallet, Target, Globe, Layers
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -31,6 +31,12 @@ const Sidebar = () => {
             path: '/contacts',
             label: 'Contacts',
             icon: UserSquare,
+            roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'TEAM_LEADER', 'CUSTOMER_SUPPORT', 'COUNSELOR']
+        },
+        {
+            path: '/leads',
+            label: 'Leads',
+            icon: Target,
             roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'TEAM_LEADER', 'CUSTOMER_SUPPORT', 'COUNSELOR']
         },
         {
@@ -62,6 +68,18 @@ const Sidebar = () => {
             label: 'Meta Ads',
             icon: Megaphone,
             roles: ['SUPER_ADMIN', 'ADMIN']
+        },
+        {
+            path: '/lead-sources',
+            label: 'Lead Sources',
+            icon: Globe,
+            roles: ['SUPER_ADMIN', 'ADMIN']
+        },
+        {
+            path: '/external-integrations',
+            label: 'External Software',
+            icon: Layers,
+            roles: ['SUPER_ADMIN', 'ADMIN', 'CUSTOMER_ADMIN']
         },
         {
             path: '/customers',
